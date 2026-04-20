@@ -98,6 +98,32 @@
           </div>
         </div>
 
+        <div v-if="showRefundRecordsCard" class="theme-panel rounded-2xl p-6">
+          <h2 class="text-lg font-bold mb-4">{{ t('orderDetail.refundRecordsTitle') }}</h2>
+          <div v-if="refundRecords.length > 0" class="overflow-x-auto rounded-xl border border-gray-200/70 dark:border-white/10">
+            <table class="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-white/10">
+              <thead class="bg-gray-50/80 text-xs uppercase tracking-wide text-gray-500 dark:bg-white/5 dark:text-gray-400">
+                <tr>
+                  <th class="px-4 py-3 font-semibold">{{ t('orderDetail.refundRecordTime') }}</th>
+                  <th class="px-4 py-3 font-semibold">{{ t('orderDetail.refundRecordAmount') }}</th>
+                  <th class="px-4 py-3 font-semibold">{{ t('orderDetail.refundRecordReason') }}</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 dark:divide-white/10">
+                <tr
+                  v-for="(record, idx) in refundRecords"
+                  :key="`refund-record-row-${idx}`"
+                >
+                  <td class="px-4 py-3 text-xs theme-text-muted whitespace-nowrap">{{ formatDate(record.created_at) }}</td>
+                  <td class="px-4 py-3 font-mono text-sm theme-text-primary whitespace-nowrap">{{ formatMoney(record.amount, record.currency || order.currency) }}</td>
+                  <td class="px-4 py-3 text-xs theme-text-muted whitespace-pre-wrap break-words">{{ refundReasonText(record.remark) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="text-sm theme-text-muted">{{ t('orderDetail.refundRecordsEmpty') }}</div>
+        </div>
+
         <div v-if="showTimeCard" class="theme-panel rounded-2xl p-6">
           <h2 class="text-lg font-bold mb-4">{{ t('orderDetail.timeTitle') }}</h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -201,8 +227,8 @@
                     formatMoney(child.total_amount, child.currency || order.currency) }}</div>
                 </div>
                 <span class="theme-badge px-3 py-1 text-xs font-medium"
-                  :class="statusClass(child.status)">
-                  {{ statusLabel(child.status) }}
+                  :class="statusClass(resolvedChildStatus(child))">
+                  {{ statusLabel(resolvedChildStatus(child)) }}
                 </span>
               </div>
               <div class="mt-4">
@@ -317,6 +343,17 @@
                     class="mt-3 theme-surface-soft border rounded-xl p-4 text-sm theme-text-secondary whitespace-pre-wrap break-all overflow-hidden">
                     {{ child.fulfillment.payload }}
                   </div>
+                  <div v-if="child.fulfillment.status === 'delivered' && instructionBlocks(child.items).length"
+                    class="mt-4 space-y-3">
+                    <div v-for="(block, bi) in instructionBlocks(child.items)" :key="`guest-child-inst-${child.id}-${bi}`"
+                      class="rounded-xl border border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30 p-4">
+                      <div class="flex items-center gap-2 mb-2 text-sm font-semibold text-blue-700 dark:text-blue-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        {{ t('orderDetail.instructionsTitle') }}
+                      </div>
+                      <div class="prose prose-sm max-w-none dark:prose-invert theme-text-secondary break-words" v-html="block.html"></div>
+                    </div>
+                  </div>
                 </div>
                 <div v-else class="text-sm theme-text-muted">{{ t('orderDetail.childFulfillmentEmpty') }}</div>
               </div>
@@ -365,6 +402,17 @@
             class="mt-4 theme-surface-soft border rounded-xl p-4 text-sm theme-text-secondary whitespace-pre-wrap break-all overflow-hidden">
             {{ order.fulfillment.payload }}
           </div>
+          <div v-if="order.fulfillment.status === 'delivered' && instructionBlocks(order.items).length"
+            class="mt-4 space-y-3">
+            <div v-for="(block, bi) in instructionBlocks(order.items)" :key="`guest-order-inst-${bi}`"
+              class="rounded-xl border border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30 p-4">
+              <div class="flex items-center gap-2 mb-2 text-sm font-semibold text-blue-700 dark:text-blue-300">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                {{ t('orderDetail.instructionsTitle') }}
+              </div>
+              <div class="prose prose-sm max-w-none dark:prose-invert theme-text-secondary break-words" v-html="block.html"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -374,6 +422,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import DOMPurify from 'dompurify'
 import { guestOrderAPI } from '../api'
 import { useAppStore } from '../stores/app'
 import { useI18n } from 'vue-i18n'
@@ -442,6 +491,17 @@ const showTimeCard = computed(() => {
   return Boolean(order.value.paid_at || order.value.expires_at || order.value.canceled_at)
 })
 
+const showRefundRecordsCard = computed(() => {
+  const status = String(order.value?.status || '').trim()
+  return status === 'refunded' || status === 'partially_refunded'
+})
+
+const refundRecords = computed(() => {
+  const records = order.value?.refund_records
+  if (!Array.isArray(records)) return []
+  return records
+})
+
 const loadSavedAuth = () => {
   const saved = localStorage.getItem('guest_order_auth')
   const savedAuth = saved ? JSON.parse(saved) : {}
@@ -486,6 +546,22 @@ const fulfillmentStatusLabelText = (status: string) => fulfillmentStatusLabel(t,
 
 const statusClass = (status: string) => orderStatusClass(status)
 
+const resolvedChildStatus = (child: any) => {
+  const status = String(child?.status || '').trim()
+  const refundedCents = amountToCents(child?.refunded_amount)
+  if (refundedCents !== null && refundedCents > 0) {
+    const totalCents = amountToCents(child?.total_amount)
+    if (totalCents !== null && totalCents > 0 && refundedCents >= totalCents) {
+      return 'refunded'
+    }
+    return 'partially_refunded'
+  }
+  if (order.value?.status === 'refunded' && status !== 'refunded') {
+    return 'refunded'
+  }
+  return status
+}
+
 const formatDate = (raw?: string) => {
   if (!raw) return ''
   const date = new Date(raw)
@@ -497,6 +573,33 @@ const getLocalizedText = (jsonData: any) => {
   if (!jsonData) return ''
   const locale = appStore.locale
   return jsonData[locale] || jsonData['zh-CN'] || jsonData['en-US'] || ''
+}
+
+const sanitizeInstructionsHtml = (raw: string) => DOMPurify.sanitize(raw, {
+  ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'code', 'pre', 'blockquote', 'ul', 'ol', 'li', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'img', 'hr'],
+  ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'title'],
+  FORBID_ATTR: ['style', 'class', 'id'],
+  ALLOW_DATA_ATTR: false,
+  ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|tel:|#|\/(?!\/))/i,
+})
+
+const instructionBlocks = (items: any): Array<{ title: string; html: string }> => {
+  if (!Array.isArray(items)) return []
+  const seen = new Set<string>()
+  const blocks: Array<{ title: string; html: string }> = []
+  for (const item of items) {
+    const html = String(getLocalizedText(item?.instructions) || '').trim()
+    if (!html) continue
+    if (seen.has(html)) continue
+    seen.add(html)
+    blocks.push({ title: getLocalizedText(item?.title), html: sanitizeInstructionsHtml(html) })
+  }
+  return blocks
+}
+
+const refundReasonText = (remark?: string) => {
+  const value = String(remark || '').trim()
+  return value || t('orderDetail.refundRecordReasonEmpty')
 }
 
 const orderItemImage = (item: any) => {

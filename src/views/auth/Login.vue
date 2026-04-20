@@ -172,8 +172,17 @@
               <span class="h-px flex-1 border-t border-gray-200/80 dark:border-white/10"></span>
             </div>
             <p class="text-center text-xs theme-text-muted">
-              {{ attemptingMiniAppLogin ? t('auth.login.telegramMiniAppLoggingIn') : t('auth.login.telegramMiniAppHint') }}
+              {{ telegramAccessChecking ? t('auth.login.telegramMiniAppCheckingAccess') : (attemptingMiniAppLogin ? t('auth.login.telegramMiniAppLoggingIn') : t('auth.login.telegramMiniAppHint')) }}
             </p>
+            <button
+              v-if="!telegramAccessChecking && telegramAccessAllowed"
+              type="button"
+              class="inline-flex w-full items-center justify-center rounded-xl border theme-btn-secondary px-4 py-3 text-sm font-semibold"
+              :disabled="attemptingMiniAppLogin"
+              @click="handleMiniAppLoginAction"
+            >
+              {{ attemptingMiniAppLogin ? t('auth.login.telegramMiniAppLoggingIn') : t('auth.login.telegramMiniAppLoginAction') }}
+            </button>
           </div>
         </form>
       </div>
@@ -199,6 +208,7 @@ import { debounceAsync } from '../../utils/debounce'
 import { useAppStore } from '../../stores/app'
 import { useTelegramMiniAppStore } from '../../stores/telegramMiniApp'
 import { buildTelegramMiniAppEntryLink, isTelegramUrlEnvironment, openTelegramCompatibleLink } from '../../utils/telegramMiniApp'
+import { userAuthAPI } from '../../api/auth'
 import type { CaptchaPayload, TelegramAuthPayload } from '../../api'
 import ImageCaptcha from '../../components/captcha/ImageCaptcha.vue'
 import TurnstileCaptcha from '../../components/captcha/TurnstileCaptcha.vue'
@@ -253,6 +263,63 @@ const showTelegramMiniAppEntry = computed(() => !isTelegramMiniApp.value && isTe
 const telegramCallbackName = '__dujiaoUserTelegramLogin'
 const miniAppLoginAttempted = ref(false)
 const attemptingMiniAppLogin = ref(false)
+const telegramAccessChecking = ref(false)
+const telegramAccessCheckedUserID = ref('')
+const telegramAccessAllowed = ref(true)
+
+const miniAppTelegramUserID = computed(() => {
+  const unsafe = telegramMiniAppStore.initDataUnsafe as Record<string, unknown>
+  const user = (unsafe?.user || null) as Record<string, unknown> | null
+  const rawID = Number(user?.id)
+  if (!Number.isFinite(rawID) || rawID <= 0) {
+    return ''
+  }
+  return String(Math.trunc(rawID))
+})
+
+const buildTelegramWhitelistDeniedMessage = (telegramUserID: string) => {
+  const safeID = String(telegramUserID || '').trim()
+  if (safeID === '') {
+    return t('auth.login.telegramWhitelistDenied')
+  }
+  return t('auth.login.telegramWhitelistDeniedWithID', { id: safeID })
+}
+
+const resolveMiniAppAccess = async () => {
+  if (!isTelegramMiniApp.value) {
+    return
+  }
+  const miniAppID = miniAppTelegramUserID.value
+  await ensureTelegramAccess(miniAppID)
+}
+
+const ensureTelegramAccess = async (telegramUserID: string) => {
+  const normalizedUserID = String(telegramUserID || '').trim()
+  if (normalizedUserID === '') {
+    return true
+  }
+  if (telegramAccessCheckedUserID.value === normalizedUserID) {
+    return telegramAccessAllowed.value
+  }
+
+  telegramAccessChecking.value = true
+  try {
+    const res = await userAuthAPI.checkTelegramAccess(normalizedUserID)
+    const data = (res.data?.data || {}) as Record<string, unknown>
+    const allowed = data.allowed !== false
+    telegramAccessCheckedUserID.value = normalizedUserID
+    telegramAccessAllowed.value = allowed
+    if (!allowed) {
+      error.value = buildTelegramWhitelistDeniedMessage(normalizedUserID)
+    }
+    return allowed
+  } catch (err: any) {
+    error.value = err?.message || t('auth.login.telegramLoginFailed')
+    return false
+  } finally {
+    telegramAccessChecking.value = false
+  }
+}
 
 const getCaptchaPayload = (): CaptchaPayload | undefined => {
   if (!loginCaptchaEnabled.value) return undefined
@@ -351,6 +418,12 @@ const handleTelegramAuth = async (raw: any) => {
     error.value = t('auth.login.telegramInvalidPayload')
     return
   }
+
+  const allowed = await ensureTelegramAccess(String(payload.id))
+  if (!allowed) {
+    return
+  }
+
   try {
     await userAuthStore.telegramLogin(payload)
     await redirectAfterLogin()
@@ -369,6 +442,12 @@ const tryTelegramMiniAppLogin = async () => {
   error.value = ''
 
   try {
+    const miniAppID = miniAppTelegramUserID.value
+    const allowed = await ensureTelegramAccess(miniAppID)
+    if (!allowed) {
+      return
+    }
+
     await userAuthStore.telegramMiniAppLogin(miniAppInitData.value)
     await redirectAfterLogin()
   } catch (err: any) {
@@ -376,6 +455,10 @@ const tryTelegramMiniAppLogin = async () => {
   } finally {
     attemptingMiniAppLogin.value = false
   }
+}
+
+const handleMiniAppLoginAction = async () => {
+  await tryTelegramMiniAppLogin()
 }
 
 const clearTelegramWidget = () => {
@@ -418,7 +501,7 @@ onMounted(async () => {
     router.replace({ path: route.path, query: nextQuery })
   }
 
-  await tryTelegramMiniAppLogin()
+  await resolveMiniAppAccess()
 })
 
 watch([showTelegramWidget, telegramBotUsername], () => {
@@ -426,7 +509,7 @@ watch([showTelegramWidget, telegramBotUsername], () => {
 })
 
 watch([isTelegramMiniApp, miniAppInitData], () => {
-  void tryTelegramMiniAppLogin()
+  void resolveMiniAppAccess()
 })
 
 onUnmounted(() => {

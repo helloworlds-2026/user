@@ -73,7 +73,7 @@
       <div
         class="border-t theme-border pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs theme-text-muted">
         <div class="space-y-1 text-center md:text-left">
-          <p>本站在独角-next原版基础上进行简单二次开发</p>
+          <p>本站当然不是使用异次元强力驱动，至于使用的什么来部署的，保密哟</p>
         </div>
         <div class="flex flex-col items-center gap-2 md:items-end">
           <div class="flex flex-wrap items-center gap-x-4 gap-y-1 justify-center md:justify-end">
@@ -150,5 +150,4 @@ const footerLinks = computed(() => {
   return links.filter((item: any) => item && typeof item.name === 'string' && item.name.trim())
 })
 
-const currentYear = new Date().getFullYear()
 </script>

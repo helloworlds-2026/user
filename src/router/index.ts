@@ -294,6 +294,7 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
     const userAuthStore = useUserAuthStore()
     const appStore = useAppStore()
+    const telegramMiniAppStore = useTelegramMiniAppStore()
     void captureAffiliateFromRoute(to)
 
     // Ensure config is loaded before checking template mode
@@ -301,20 +302,40 @@ router.beforeEach(async (to, _from, next) => {
         await appStore.loadConfig()
     }
 
-    if (to.meta.requiresUserAuth) {
-        if (!userAuthStore.isAuthenticated) {
-            const redirect = encodeURIComponent(to.fullPath)
-            next(`/auth/login?redirect=${redirect}`)
-        } else {
+    const isAuthRoute = to.path.startsWith('/auth/')
+    const isGuestOrdersRoute = to.path === '/guest/orders' || to.path.startsWith('/guest/orders/')
+    const userURLTelegramAppOnly = appStore.config?.user_url_telegram_app === true
+    const requireLogin = appStore.config?.require_login === true
+    const enableGuestOrders = appStore.config?.enable_guest_orders === true
+
+    // Telegram Mini App only mode: any browser visit should resolve to 404.
+    if (userURLTelegramAppOnly && !telegramMiniAppStore.isMiniApp) {
+        if (to.name === 'not-found') {
             next()
+        } else {
+            next({ name: 'not-found', replace: true })
+        }
+        return
+    }
+
+    // Guest order lookup availability depends on access config.
+    if (isGuestOrdersRoute) {
+        if (requireLogin || !enableGuestOrders) {
+            next('/')
+            return
         }
     }
-    else if (to.meta.userGuest) {
+
+    if (to.meta.userGuest) {
         if (userAuthStore.isAuthenticated) {
             next('/me/orders')
         } else {
             next()
         }
+    }
+    else if ((requireLogin || to.meta.requiresUserAuth) && !isAuthRoute && !userAuthStore.isAuthenticated) {
+        const redirect = encodeURIComponent(to.fullPath)
+        next(`/auth/login?redirect=${redirect}`)
     }
     else {
         next()

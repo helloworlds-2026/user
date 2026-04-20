@@ -384,10 +384,12 @@ const orderStatusOptions = computed(() => [
   { value: 'paid', label: t('order.status.paid') },
   { value: 'fulfilling', label: t('order.status.fulfilling') },
   { value: 'partially_delivered', label: t('order.status.partially_delivered') },
+  { value: 'partially_refunded', label: t('order.status.partially_refunded') },
   { value: 'delivered', label: t('order.status.delivered') },
   { value: 'completed', label: t('order.status.completed') },
   { value: 'expired', label: t('order.status.expired') },
   { value: 'canceled', label: t('order.status.canceled') },
+  { value: 'refunded', label: t('order.status.refunded') },
 ])
 
 const hasOrderActiveFilters = computed(() => Boolean(orderFilters.orderNo || orderFilters.status))
@@ -396,7 +398,7 @@ const currentOrderStatusLabel = computed(() => {
   return selected?.label || t('orders.filters.statusAll')
 })
 const pendingPaymentCount = computed(() => orders.value.filter((o) => o.status === 'pending_payment').length)
-const finishedCount = computed(() => orders.value.filter((o) => o.status === 'delivered' || o.status === 'completed').length)
+const finishedCount = computed(() => orders.value.filter((o) => o.status === 'delivered' || o.status === 'completed' || o.status === 'partially_refunded' || o.status === 'refunded').length)
 
 const loadOrders = async (page = 1) => {
   orderLoading.value = true

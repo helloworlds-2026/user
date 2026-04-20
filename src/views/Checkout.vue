@@ -198,9 +198,13 @@
               />
             </div>
 
-            <p v-if="checkoutMode === 'guest'" class="text-xs theme-text-muted">
-              {{ t('checkout.guestTip') }}
-            </p>
+            <div v-if="checkoutMode === 'guest'" class="mb-3 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+              <p class="font-semibold">{{ t('checkout.guestInstructions.title') }}</p>
+              <ul class="mt-2 space-y-1 list-disc pl-5">
+                <li>{{ t('checkout.guestInstructions.email') }}</li>
+                <li>{{ t('checkout.guestInstructions.password') }}</li>
+              </ul>
+            </div>
             <p v-if="checkoutMode === 'guest' && guestEmail && !guestEmailValid" class="text-xs text-red-500">
               {{ t('error.email_invalid') }}
             </p>
