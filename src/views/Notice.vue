@@ -42,7 +42,7 @@
                 {{ t('nav.notice') }}
               </span>
               <time class="text-xs theme-text-muted font-mono">
-                {{ formatDate(notice.created_at) }}
+                {{ formatDate(notice.published_at) }}
               </time>
             </div>
 
@@ -135,6 +135,7 @@ const getLocalizedText = (jsonData: any) => {
 }
 
 const formatDate = (dateString: string) => {
+  if (!dateString) return ''
   const date = new Date(dateString)
   return date.toLocaleDateString(appStore.locale, {
     year: 'numeric',

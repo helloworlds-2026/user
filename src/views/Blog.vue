@@ -40,7 +40,7 @@
                   {{ post.type === 'blog' ? t('nav.blog') : t('nav.notice') }}
                 </span>
                 <time class="text-xs theme-text-muted font-mono">
-                  {{ formatDate(post.created_at) }}
+                  {{ formatDate(post.published_at) }}
                 </time>
               </div>
 
@@ -135,6 +135,7 @@ const getLocalizedText = (jsonData: any) => {
 }
 
 const formatDate = (dateString: string) => {
+  if (!dateString) return ''
   const date = new Date(dateString)
   return date.toLocaleDateString(appStore.locale, {
     year: 'numeric',
