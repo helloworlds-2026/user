@@ -149,6 +149,4 @@ const footerLinks = computed(() => {
   if (!Array.isArray(links)) return []
   return links.filter((item: any) => item && typeof item.name === 'string' && item.name.trim())
 })
-
-const currentYear = new Date().getFullYear()
 </script>
