@@ -47,13 +47,6 @@
           </span>
         </router-link>
 
-        <router-link v-if="!userAuthStore.isAuthenticated" to="/guest/orders"
-          class="hidden lg:inline-flex theme-nav-link items-center gap-1.5 whitespace-nowrap">
-          <svg class="w-4 h-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-          </svg>
-          {{ t('navbar.guestOrders') }}
-        </router-link>
         <router-link v-if="!userAuthStore.isAuthenticated" to="/auth/login"
           class="hidden lg:inline-flex theme-nav-link items-center gap-1.5 whitespace-nowrap">
           <svg class="w-4 h-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,6 +54,13 @@
           </svg>
           {{ t('navbar.login') }}
         </router-link>
+          <router-link v-if="canShowGuestOrders && !userAuthStore.isAuthenticated" to="/guest/orders"
+            class="hidden lg:inline-flex theme-nav-link items-center gap-1.5 whitespace-nowrap">
+            <svg class="w-4 h-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+            {{ t('navbar.guestOrders') }}
+          </router-link>
         <router-link v-if="userAuthStore.isAuthenticated" to="/me"
           class="hidden lg:inline-flex theme-nav-link items-center gap-1.5 whitespace-nowrap">
           <svg class="w-4 h-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,16 +177,6 @@
             </a>
           </template>
 
-          <!-- Guest orders (not in bottom nav) -->
-          <router-link v-if="!userAuthStore.isAuthenticated" to="/guest/orders" @click="showMobileMenu = false"
-            class="block w-full text-left px-4 py-3 rounded-xl theme-nav-link text-sm min-h-[44px] flex items-center gap-3"
-            active-class="theme-nav-link-active">
-            <svg class="w-5 h-5 shrink-0 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-            {{ t('navbar.guestOrders') }}
-          </router-link>
-
           <!-- Logout (login/me already in bottom nav) -->
           <button v-if="userAuthStore.isAuthenticated" @click="userAuthStore.logout(); showMobileMenu = false"
             class="w-full text-left px-4 py-3 rounded-xl text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors font-medium min-h-[44px] flex items-center gap-3">
@@ -239,6 +229,11 @@ const cartBounce = ref(false)
 
 const isListMode = computed(() => appStore.config?.template_mode === 'list')
 
+const canShowGuestOrders = computed(() => {
+  const requireLogin = appStore.config?.require_login === true
+  const enableGuestOrders = appStore.config?.enable_guest_orders === true
+  return !requireLogin && enableGuestOrders
+})
 // 内置导航项定义
 const builtinNavDefs: Record<string, { path: string; label: string; icon: string }> = {
   blog: { path: '/blog', label: 'nav.blog', icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2' },
