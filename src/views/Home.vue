@@ -364,7 +364,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { postAPI, productAPI } from '../api'
 import { getImageUrl } from '../utils/image'
@@ -372,6 +372,7 @@ import { useLocalized } from '../composables/useProduct'
 import { useBannerCarousel } from '../composables/useBannerCarousel'
 import { useProductList } from '../composables/useProductList'
 import { useProductListGroups } from '../composables/useProductListGroups'
+import { usePageSeo } from '../composables/usePageSeo'
 import { useAppStore } from '../stores/app'
 import ProductCard from '../components/ProductCard.vue'
 import ProductListItem from '../components/ProductListItem.vue'
@@ -446,6 +447,24 @@ const {
 } = useProductList({ pageSize: 20, homeRouteName: 'home' })
 
 const listProductGroups = useProductListGroups(listProducts, listCategoryMap)
+
+// ==================== SEO ====================
+const route = useRoute()
+const seoCategoryName = computed(() => {
+  if (!listSelectedCategory.value) return ''
+  const cat = listCategoryMap.value.get(listSelectedCategory.value)
+  return cat ? getLocalizedText(cat.name) : ''
+})
+usePageSeo({
+  canonicalPath: () => route.path,
+  title: () => {
+    if (route.name === 'category-products') {
+      return seoCategoryName.value || t('nav.products')
+    }
+    if (route.name === 'products') return t('nav.products')
+    return undefined
+  },
+})
 
 // ==================== Card Mode ====================
 const formatDate = (dateString: string) => {

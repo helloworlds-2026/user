@@ -19,11 +19,96 @@
       <div class="theme-auth-card">
         <div class="mb-8 text-center">
           <p class="text-xs font-semibold uppercase tracking-[0.22em] theme-text-accent">{{ brandSiteName }}</p>
-          <h1 class="mt-3 text-3xl font-black theme-text-primary">{{ t('auth.login.title') }}</h1>
-          <p class="mt-2 text-sm theme-text-muted">{{ t('auth.login.subtitle') }}</p>
+          <h1 class="mt-3 text-3xl font-black theme-text-primary">
+            {{ step === 'totp' ? t('auth.login.totp.title') : t('auth.login.title') }}
+          </h1>
+          <p class="mt-2 text-sm theme-text-muted">
+            {{ step === 'totp' ? t('auth.login.totp.subtitle') : t('auth.login.subtitle') }}
+          </p>
         </div>
 
-        <form class="theme-auth-form" @submit.prevent="handleLogin">
+        <form
+          v-if="step === 'totp'"
+          class="theme-auth-form"
+          @submit.prevent="handleVerify2FA"
+        >
+          <div class="rounded-xl border theme-pill-neutral px-4 py-2 text-center text-xs theme-text-muted">
+            {{ t('auth.login.totp.countdown', { seconds: challengeRemainingSeconds }) }}
+          </div>
+
+          <FormField
+            v-if="totpMode === 'code'"
+            :label="t('auth.login.totp.codeLabel')"
+          >
+            <template #default="{ id }">
+              <input
+                :id="id"
+                v-model="totpCode"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                maxlength="6"
+                class="w-full form-input-lg tracking-[0.4em] text-center"
+                :placeholder="t('auth.login.totp.codePlaceholder')"
+              />
+            </template>
+          </FormField>
+
+          <FormField
+            v-else
+            :label="t('auth.login.totp.recoveryLabel')"
+          >
+            <template #default="{ id }">
+              <input
+                :id="id"
+                v-model="recoveryCode"
+                autocomplete="off"
+                class="w-full form-input-lg"
+                :placeholder="t('auth.login.totp.recoveryPlaceholder')"
+              />
+            </template>
+          </FormField>
+
+          <div class="text-center">
+            <button
+              type="button"
+              class="theme-link-muted text-xs"
+              @click="totpMode = totpMode === 'code' ? 'recovery' : 'code'"
+            >
+              {{ totpMode === 'code' ? t('auth.login.totp.useRecovery') : t('auth.login.totp.useCode') }}
+            </button>
+          </div>
+
+          <div
+            v-if="error"
+            class="rounded-xl border theme-alert-danger px-4 py-3 text-center text-sm"
+          >
+            {{ error }}
+          </div>
+
+          <button
+            type="submit"
+            :disabled="userAuthStore.loading"
+            class="inline-flex w-full items-center justify-center rounded-xl theme-btn-primary px-4 py-3 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {{ userAuthStore.loading ? t('auth.login.totp.verifying') : t('auth.login.totp.submit') }}
+          </button>
+
+          <div class="text-center">
+            <button
+              type="button"
+              class="theme-link-muted text-xs"
+              @click="cancel2FA"
+            >
+              {{ t('auth.login.totp.cancel') }}
+            </button>
+          </div>
+        </form>
+
+        <form
+          v-else
+          class="theme-auth-form"
+          @submit.prevent="handleLogin"
+        >
           <FormField
             :label="t('auth.login.emailLabel')"
             :error="formValidation.getError('email')"
@@ -241,6 +326,13 @@ const password = ref('')
 const showPassword = ref(false)
 const rememberMe = ref(true)
 
+const step = ref<'password' | 'totp'>('password')
+const totpMode = ref<'code' | 'recovery'>('code')
+const totpCode = ref('')
+const recoveryCode = ref('')
+const challengeRemainingSeconds = ref(0)
+let challengeTimer: ReturnType<typeof setInterval> | null = null
+
 const formValidation = useFormValidation(['email', 'password'])
 formValidation.addRule('email', formValidation.requiredRule())
 formValidation.addRule('email', formValidation.emailRule())
@@ -382,12 +474,16 @@ const performLogin = async () => {
   }
 
   try {
-    await userAuthStore.login({
+    const result = await userAuthStore.login({
       email: email.value,
       password: password.value,
       remember_me: rememberMe.value,
       captcha_payload: getCaptchaPayload(),
     })
+    if (result && result.requiresTotp) {
+      enter2FAStep()
+      return
+    }
     await redirectAfterLogin()
   } catch (err: any) {
     error.value = err.message || t('auth.login.error')
@@ -402,6 +498,78 @@ const performLogin = async () => {
 }
 
 const handleLogin = debounceAsync(performLogin, 200)
+
+const stopChallengeCountdown = () => {
+  if (challengeTimer) {
+    clearInterval(challengeTimer)
+    challengeTimer = null
+  }
+}
+
+const startChallengeCountdown = () => {
+  stopChallengeCountdown()
+  const tick = () => {
+    const expiresAt = userAuthStore.challengeExpiresAt
+    if (!expiresAt) {
+      challengeRemainingSeconds.value = 0
+      stopChallengeCountdown()
+      return
+    }
+    const diff = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000))
+    challengeRemainingSeconds.value = diff
+    if (diff <= 0) {
+      stopChallengeCountdown()
+      cancel2FA()
+      error.value = t('auth.login.totp.expired')
+    }
+  }
+  tick()
+  challengeTimer = setInterval(tick, 1000)
+}
+
+const cancel2FA = () => {
+  stopChallengeCountdown()
+  userAuthStore.clearChallenge()
+  step.value = 'password'
+  totpCode.value = ''
+  recoveryCode.value = ''
+  challengeRemainingSeconds.value = 0
+}
+
+const performVerify2FA = async () => {
+  error.value = ''
+  if (totpMode.value === 'code') {
+    const code = totpCode.value.trim()
+    if (code === '') {
+      error.value = t('auth.login.totp.codeRequired')
+      return
+    }
+    try {
+      await userAuthStore.verify2FA({ code })
+      stopChallengeCountdown()
+      await redirectAfterLogin()
+    } catch (err: any) {
+      error.value = err.message || t('auth.login.totp.verifyFailed')
+      totpCode.value = ''
+    }
+    return
+  }
+  const rc = recoveryCode.value.trim()
+  if (rc === '') {
+    error.value = t('auth.login.totp.recoveryRequired')
+    return
+  }
+  try {
+    await userAuthStore.verify2FA({ recovery_code: rc })
+    stopChallengeCountdown()
+    await redirectAfterLogin()
+  } catch (err: any) {
+    error.value = err.message || t('auth.login.totp.verifyFailed')
+    recoveryCode.value = ''
+  }
+}
+
+const handleVerify2FA = debounceAsync(performVerify2FA, 200)
 
 const buildTelegramPayload = (raw: any): TelegramAuthPayload | null => {
   const id = Number(raw?.id)
@@ -421,6 +589,14 @@ const buildTelegramPayload = (raw: any): TelegramAuthPayload | null => {
   }
 }
 
+const enter2FAStep = () => {
+  step.value = 'totp'
+  totpMode.value = 'code'
+  totpCode.value = ''
+  recoveryCode.value = ''
+  startChallengeCountdown()
+}
+
 const handleTelegramAuth = async (raw: any) => {
   error.value = ''
   const payload = buildTelegramPayload(raw)
@@ -435,7 +611,11 @@ const handleTelegramAuth = async (raw: any) => {
   }
 
   try {
-    await userAuthStore.telegramLogin(payload)
+    const result = await userAuthStore.telegramLogin(payload)
+    if (result && result.requiresTotp) {
+      enter2FAStep()
+      return
+    }
     await redirectAfterLogin()
   } catch (err: any) {
     error.value = err.message || t('auth.login.telegramLoginFailed')
@@ -458,7 +638,11 @@ const tryTelegramMiniAppLogin = async () => {
       return
     }
 
-    await userAuthStore.telegramMiniAppLogin(miniAppInitData.value)
+    const result = await userAuthStore.telegramMiniAppLogin(miniAppInitData.value)
+    if (result && result.requiresTotp) {
+      enter2FAStep()
+      return
+    }
     await redirectAfterLogin()
   } catch (err: any) {
     error.value = err.message || t('auth.login.telegramLoginFailed')
@@ -526,5 +710,6 @@ onUnmounted(() => {
   const win = window as Window & Record<string, any>
   delete win[telegramCallbackName]
   clearTelegramWidget()
+  stopChallengeCountdown()
 })
 </script>
