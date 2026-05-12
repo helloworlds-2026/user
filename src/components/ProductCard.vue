@@ -1,24 +1,27 @@
 <template>
   <div
-    class="group relative theme-panel rounded-2xl border transition-all overflow-hidden flex flex-col h-full theme-slide-up cursor-pointer"
+    class="group relative theme-panel rounded-2xl border transition-all overflow-hidden flex flex-col h-full theme-slide-up"
     :class="isSoldOut(product)
-      ? 'opacity-85 grayscale-[0.25] saturate-50 border-rose-300/60 dark:border-rose-900/40 hover:-translate-y-0 hover:shadow-none hover:border-rose-300/60 dark:hover:border-rose-900/40'
-      : 'theme-card-interactive'"
+      ? 'cursor-default opacity-85 grayscale-[0.25] saturate-50 border-rose-300/60 dark:border-rose-900/40'
+      : 'cursor-pointer theme-card-interactive'"
     :style="{ animationDelay: `${index * animationStep}ms` }"
     @click="$emit('click', product.slug)">
     <!-- Image Area -->
     <div class="aspect-[4/3] overflow-hidden theme-surface-muted relative shrink-0">
-      <div class="absolute inset-0 bg-black/15 z-10"></div>
-      <img v-if="product.images && getFirstImageUrl(product.images)" :src="getFirstImageUrl(product.images)"
-        :alt="getLocalizedText(product.title)" loading="lazy"
+      <div
+        class="absolute inset-0 z-10 transition-colors duration-300"
+        :class="isSoldOut(product) ? 'bg-black/15' : 'bg-black/15 group-hover:bg-black/5'"
+      ></div>
+      <img v-if="displayImageSrc && !imageErrored" :src="displayImageSrc"
+        :alt="getLocalizedText(product.title)" loading="lazy" decoding="async"
         class="w-full h-full object-cover transform transition-transform duration-700 ease-out"
-        :class="isSoldOut(product) ? 'grayscale brightness-75' : 'group-hover:scale-110'" />
-      <img v-else-if="product.category?.icon" :src="getImageUrl(product.category.icon)"
-        :alt="getLocalizedText(product.category?.name)" loading="lazy"
-        class="w-full h-full object-cover transform transition-transform duration-700 ease-out"
-        :class="isSoldOut(product) ? 'grayscale brightness-75' : 'group-hover:scale-110'" />
-      <div v-else class="w-full h-full flex items-center justify-center theme-text-muted">
-        <svg class="w-8 h-8 md:w-12 md:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        :class="[
+          isSoldOut(product) ? 'grayscale brightness-75' : 'group-hover:scale-105',
+        ]"
+        @error="handleImageError" />
+      <div v-else class="w-full h-full flex items-center justify-center theme-text-muted" role="img"
+        :aria-label="getLocalizedText(product.title)">
+        <svg class="w-8 h-8 md:w-12 md:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
             d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
@@ -96,14 +99,25 @@
       <div class="flex items-center justify-between border-t theme-border pt-2 md:pt-4 mt-auto">
         <div class="flex flex-col">
           <span class="hidden md:block text-xs theme-text-muted uppercase tracking-wider">{{ t('products.price') }}</span>
-          <span v-if="hasPromotionPrice(product)" class="theme-price-sm text-rose-600 dark:text-rose-300">
+          <span
+            v-if="hasPromotionPrice(product)"
+            class="theme-price-sm text-rose-600 dark:text-rose-300"
+            :aria-label="t('products.promotionPriceAria', { price: formatPrice(getPromotionPriceAmount(product), siteCurrency) })"
+          >
             {{ formatPrice(getPromotionPriceAmount(product), siteCurrency) }}
           </span>
-          <span v-else class="theme-price-sm theme-text-primary">
+          <span
+            v-else
+            class="theme-price-sm theme-text-primary"
+            :aria-label="t('products.priceAria', { price: formatPrice(product.price_amount, siteCurrency) })"
+          >
             {{ formatPrice(product.price_amount, siteCurrency) }}
           </span>
           <div v-if="hasPromotionPrice(product)" class="mt-0.5 flex flex-wrap items-center gap-1.5">
-            <span class="hidden md:inline text-xs theme-text-muted opacity-80 line-through">{{ formatPrice(product.price_amount, siteCurrency) }}</span>
+            <span
+              class="hidden md:inline text-xs theme-text-muted opacity-80 line-through"
+              :aria-label="t('products.originalPriceAria', { price: formatPrice(product.price_amount, siteCurrency) })"
+            >{{ formatPrice(product.price_amount, siteCurrency) }}</span>
             <span class="theme-badge theme-badge-danger theme-badge-xs">
               {{ t('products.promotionTag') }}
             </span>
@@ -119,11 +133,13 @@
           <!-- Quick buy cart button -->
           <button
             type="button"
+            :aria-label="t('products.quickBuyAria')"
             class="relative flex items-center justify-center w-8 h-8 md:w-9 md:h-9 rounded-lg border transition-all"
             :class="isSoldOut(product)
               ? 'opacity-40 cursor-not-allowed border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-600'
               : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-100 dark:hover:text-white dark:hover:border-gray-500 dark:hover:bg-gray-800'"
             :disabled="isSoldOut(product)"
+            :aria-disabled="isSoldOut(product)"
             @click.stop="$emit('quickBuy', product)"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -154,10 +170,11 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { computed, ref, watch } from 'vue'
 import { getFirstImageUrl, getImageUrl } from '../utils/image'
 import { useLocalized, useProductLabels } from '../composables/useProduct'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   product: any
   index?: number
   maxTags?: number
@@ -176,4 +193,34 @@ defineEmits<{
 const { t } = useI18n()
 const { getLocalizedText, siteCurrency, formatPrice } = useLocalized()
 const { getPurchaseTypeLabel, getFulfillmentTypeLabel, getStockBadgeClass, getStockStatusLabel, isSoldOut, hasPromotionPrice, getPromotionPriceAmount, hasPromotionRules } = useProductLabels()
+
+const imageErrored = ref(false)
+const attemptIdx = ref(0)
+
+const imageCandidates = computed<string[]>(() => {
+  const arr: string[] = []
+  const primary = getFirstImageUrl(props.product?.images)
+  if (primary) arr.push(primary)
+  const categoryIcon = props.product?.category?.icon
+  if (categoryIcon) {
+    const resolved = getImageUrl(categoryIcon)
+    if (resolved && resolved !== primary) arr.push(resolved)
+  }
+  return arr
+})
+
+const displayImageSrc = computed(() => imageCandidates.value[attemptIdx.value] ?? '')
+
+watch(imageCandidates, () => {
+  attemptIdx.value = 0
+  imageErrored.value = false
+}, { deep: true })
+
+const handleImageError = () => {
+  if (attemptIdx.value < imageCandidates.value.length - 1) {
+    attemptIdx.value++
+  } else {
+    imageErrored.value = true
+  }
+}
 </script>

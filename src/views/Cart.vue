@@ -6,49 +6,16 @@
         <p class="text-sm theme-text-secondary">{{ t('cart.subtitle') }}</p>
       </div>
 
-      <!-- Step Indicator with numbers and connecting lines -->
-      <div class="mb-8 rounded-2xl border border-gray-200 theme-panel-soft p-4 backdrop-blur">
-        <div class="flex items-center">
-          <template v-for="(step, idx) in flowSteps" :key="step.key">
-            <div class="flex items-center gap-2" :class="idx === 0 ? '' : 'flex-1'">
-              <!-- Connecting line (before step, except first) -->
-              <div v-if="idx > 0" class="flex-1 h-0.5 rounded-full transition-colors"
-                :class="step.active ? 'bg-current theme-text-accent' : 'theme-surface-muted'"></div>
-              <!-- Step circle + label -->
-              <div class="flex items-center gap-2 shrink-0">
-                <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors"
-                  :class="step.active
-                    ? 'theme-btn-primary border-transparent'
-                    : 'border-gray-300 dark:border-gray-600 theme-text-muted'">
-                  {{ idx + 1 }}
-                </span>
-                <span class="text-sm font-medium hidden sm:inline"
-                  :class="step.active ? 'theme-text-primary' : 'theme-text-muted'">
-                  {{ step.label }}
-                </span>
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
+      <CheckoutSteps class="mb-8" current-step="cart" />
 
       <!-- Empty State -->
-      <div
+      <EmptyState
         v-if="cartItems.length === 0"
-        class="rounded-2xl border theme-panel p-12 text-center theme-slide-up"
-      >
-        <svg class="w-16 h-16 mx-auto theme-text-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.3 2.6a1 1 0 00.9 1.4H19M7 13l.4 2M10 21a1 1 0 100-2 1 1 0 000 2zm8 1a1 1 0 100-2 1 1 0 000 2z" />
-        </svg>
-        <p class="mb-6 theme-text-muted">{{ t('cart.empty') }}</p>
-        <router-link
-          to="/products"
-          class="theme-btn-inline-md theme-btn-primary gap-2 font-semibold transition-colors"
-        >
-          {{ t('cart.emptyAction') }}
-        </router-link>
-      </div>
+        icon="cart"
+        :title="t('cart.empty')"
+        :action-label="t('cart.emptyAction')"
+        action-to="/products"
+      />
 
       <div v-else class="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div class="space-y-4 lg:col-span-2">
@@ -61,24 +28,11 @@
               <div
                 class="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm dark:border-white/10 dark:bg-black/30"
               >
-                <img
-                  v-if="cartItemImage(item)"
+                <SmartImage
                   :src="cartItemImage(item)"
                   :alt="getLocalizedText(item.title)"
-                  loading="lazy"
-                  decoding="async"
-                  class="h-full w-full object-cover"
+                  img-class="h-full w-full object-cover"
                 />
-                <div v-else class="flex h-full w-full items-center justify-center theme-text-muted">
-                  <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="1.5"
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
               </div>
 
               <div class="flex-1 min-w-0">
@@ -127,7 +81,7 @@
                   <div class="flex items-center gap-2">
                     <button
                       @click="updateQty(item, item.quantity - 1)"
-                      :disabled="item.quantity <= 1"
+                      :disabled="item.quantity <= itemPurchaseMin(item)"
                       class="h-10 w-10 rounded-lg border theme-btn-secondary cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center text-base font-medium"
                     >
                       -
@@ -138,7 +92,7 @@
                       :name="`cart-qty-${item.productId}`"
                       :value="item.quantity"
                       @change="handleQtyChange(item, $event)"
-                      min="1"
+                      :min="itemPurchaseMin(item)"
                       :max="itemMaxQuantity(item)"
                       class="cart-qty-input w-12 text-center text-sm font-mono theme-text-primary bg-transparent border-none p-0 focus:ring-0 focus:outline-none"
                     />
@@ -152,7 +106,7 @@
                   </div>
 
                   <div class="text-right">
-                    <p class="text-xs uppercase tracking-wider theme-text-muted">{{ t('checkout.previewTotal') }}</p>
+                    <p class="text-xs uppercase tracking-wider theme-text-muted">{{ t('checkout.totalPriceLabel') }}</p>
                     <p class="text-sm font-semibold theme-text-primary">{{ itemSubtotal(item) }}</p>
                   </div>
                 </div>
@@ -207,10 +161,13 @@ import { useCartStore, type CartItem } from '../stores/cart'
 import { useAppStore } from '../stores/app'
 import { amountToCents, centsToAmount, parseInteger } from '../utils/money'
 import { buildSkuDisplayText, normalizeSkuId } from '../utils/sku'
-import { refreshCartStockSnapshots } from '../utils/cartStock'
+import { refreshCartStockSnapshots, cartItemPurchaseLimit as itemPurchaseLimit, cartItemPurchaseMin as itemPurchaseMin } from '../utils/cartStock'
 import { getImageUrl } from '../utils/image'
 import { useLocalized } from '../composables/useProduct'
 import { toast } from '../composables/useToast'
+import EmptyState from '../components/EmptyState.vue'
+import SmartImage from '../components/SmartImage.vue'
+import CheckoutSteps from '../components/checkout/CheckoutSteps.vue'
 
 const cartStore = useCartStore()
 const appStore = useAppStore()
@@ -246,12 +203,6 @@ const removeWithUndo = (item: CartItem) => {
   })
 }
 
-const flowSteps = computed(() => ([
-  { key: 'cart', label: t('cart.title'), active: true },
-  { key: 'checkout', label: t('checkout.title'), active: false },
-  { key: 'payment', label: t('payment.title'), active: false },
-]))
-
 const itemSubtotal = (item: CartItem) => {
   const amountCents = amountToCents(item.priceAmount)
   const qty = parseInteger(item.quantity)
@@ -267,6 +218,13 @@ const updateQty = (item: CartItem, qty: number) => {
   const max = itemMaxQuantity(item)
   const available = itemAvailableStock(item)
   const purchaseLimit = itemPurchaseLimit(item)
+  const purchaseMin = itemPurchaseMin(item)
+  if (qty < purchaseMin) {
+    if (purchaseMin > 1) {
+      quantityWarnings.value[key] = t('cart.minPurchaseNotMet', { count: purchaseMin })
+    }
+    return
+  }
   if (qty > max) {
     if (max <= 0) {
       quantityWarnings.value[key] = t('cart.stockOut')
@@ -283,7 +241,8 @@ const updateQty = (item: CartItem, qty: number) => {
 const handleQtyChange = (item: CartItem, event: Event) => {
   const target = event.target as HTMLInputElement
   const value = parseInt(target.value, 10)
-  if (!Number.isFinite(value) || value < 1) {
+  const purchaseMin = itemPurchaseMin(item)
+  if (!Number.isFinite(value) || value < purchaseMin) {
     target.value = String(item.quantity)
     return
   }
@@ -320,14 +279,6 @@ const normalizeManualStockTotal = (value: unknown) => {
   return Math.max(integerValue, 0)
 }
 
-const normalizeOptionalLimitNumber = (value: unknown) => {
-  const numberValue = Number(value)
-  if (!Number.isFinite(numberValue)) return null
-  const integerValue = Math.floor(numberValue)
-  if (integerValue <= 0) return null
-  return integerValue
-}
-
 const hasItemStockSnapshot = (item: CartItem) => Boolean(String(item.skuStockSnapshotAt || '').trim())
 
 const shouldEnforceItemStock = (item: CartItem) => {
@@ -356,8 +307,6 @@ const itemAvailableStock = (item: CartItem) => {
   if (total === -1) return null
   return total
 }
-
-const itemPurchaseLimit = (item: CartItem) => normalizeOptionalLimitNumber(item.maxPurchaseQuantity)
 
 const itemMaxQuantity = (item: CartItem) => {
   const available = itemAvailableStock(item)

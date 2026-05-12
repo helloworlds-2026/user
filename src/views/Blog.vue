@@ -11,6 +11,23 @@
         </p>
       </div>
 
+      <!-- Search Box -->
+      <div class="mb-12 max-w-xl mx-auto">
+        <div
+          class="relative theme-panel-soft backdrop-blur-md border rounded-2xl flex items-center px-5 py-3 transition-all focus-within:shadow-lg">
+          <svg class="w-5 h-5 theme-text-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input v-model="searchKeyword" type="text" :placeholder="t('blog.searchPlaceholder')"
+            class="flex-1 bg-transparent border-none outline-none px-3 theme-text-primary placeholder:theme-text-muted" />
+          <button v-if="searchKeyword" type="button" @click="searchKeyword = ''"
+            class="theme-text-muted hover:theme-text-primary transition-colors text-sm font-medium px-2 py-1 rounded-md">
+            {{ t('blog.searchClear') }}
+          </button>
+        </div>
+      </div>
+
       <!-- Loading State -->
       <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         <div v-for="i in 6" :key="i"
@@ -101,7 +118,7 @@
             d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
         </svg>
         <p class="theme-text-muted text-lg">
-          {{ t('blog.empty') }}
+          {{ searchKeyword.trim() ? t('blog.noResults') : t('blog.empty') }}
         </p>
       </div>
     </div>
@@ -109,17 +126,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '../stores/app'
 import { postAPI } from '../api'
 import { getImageUrl } from '../utils/image'
 import { debounceAsync } from '../utils/debounce'
+import { usePageSeo } from '../composables/usePageSeo'
 
 const router = useRouter()
 const { t } = useI18n()
 const appStore = useAppStore()
+
+usePageSeo({
+  title: () => t('nav.blog'),
+  canonicalPath: () => '/blog',
+})
 
 const loading = ref(true)
 const posts = ref<any[]>([])
@@ -127,6 +150,7 @@ const currentPage = ref(1)
 const pageSize = ref(12)
 const total = ref(0)
 const totalPages = ref(0)
+const searchKeyword = ref('')
 
 const getLocalizedText = (jsonData: any) => {
   if (!jsonData) return ''
@@ -147,11 +171,16 @@ const formatDate = (dateString: string) => {
 const loadPosts = async () => {
   loading.value = true
   try {
-    const response = await postAPI.list({
+    const params: Record<string, any> = {
       type: 'blog',
       page: currentPage.value,
       page_size: pageSize.value,
-    })
+    }
+    const keyword = searchKeyword.value.trim()
+    if (keyword) {
+      params.search = keyword
+    }
+    const response = await postAPI.list(params)
     posts.value = response.data.data || []
     if (response.data.pagination) {
       total.value = response.data.pagination.total || 0
@@ -176,6 +205,11 @@ const changePage = (page: number) => {
   debouncedLoadPosts()
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
+
+watch(searchKeyword, () => {
+  currentPage.value = 1
+  debouncedLoadPosts()
+})
 
 onMounted(() => {
   loadPosts()

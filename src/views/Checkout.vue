@@ -6,41 +6,19 @@
         <p class="text-sm theme-text-secondary">{{ t('checkout.subtitle') }}</p>
       </div>
 
-      <div class="mb-8 rounded-2xl border theme-border theme-panel-soft p-4 backdrop-blur">
-        <div class="flex items-center">
-          <template v-for="(step, idx) in flowSteps" :key="step.key">
-            <div class="flex items-center gap-2" :class="idx === 0 ? '' : 'flex-1'">
-              <div v-if="idx > 0" class="flex-1 h-0.5 rounded-full transition-colors"
-                :class="step.active ? 'bg-current theme-text-accent' : 'theme-surface-muted'"></div>
-              <div class="flex items-center gap-2 shrink-0">
-                <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors"
-                  :class="step.active
-                    ? 'theme-btn-primary border-transparent'
-                    : 'border-gray-300 dark:border-gray-600 theme-text-muted'">
-                  {{ idx + 1 }}
-                </span>
-                <span class="text-sm font-medium hidden sm:inline"
-                  :class="step.active ? 'theme-text-primary' : 'theme-text-muted'">
-                  {{ step.label }}
-                </span>
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
+      <CheckoutSteps
+        class="mb-8"
+        current-step="checkout"
+        :step-keys="isBuyNowMode ? ['checkout', 'payment'] : ['cart', 'checkout', 'payment']"
+      />
 
-      <div
+      <EmptyState
         v-if="cartItems.length === 0"
-        class="rounded-2xl border theme-panel p-12 text-center"
-      >
-        <p class="mb-6 theme-text-muted">{{ t('checkout.empty') }}</p>
-        <router-link
-          to="/products"
-          class="theme-btn-inline-md theme-btn-primary gap-2 font-semibold transition-colors"
-        >
-          {{ t('checkout.emptyAction') }}
-        </router-link>
-      </div>
+        icon="cart"
+        :title="t('checkout.empty')"
+        :action-label="t('checkout.emptyAction')"
+        action-to="/products"
+      />
 
       <div v-else class="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
@@ -55,69 +33,53 @@
                   ? 'border-amber-200 bg-amber-50/60 dark:border-amber-700 dark:bg-amber-950/20'
                   : 'border-gray-100 bg-gray-50 dark:border-white/10 dark:bg-black/20'"
               >
-                <div class="flex items-start justify-between gap-4">
-                  <div class="flex min-w-0 items-start gap-3">
-                    <div class="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm dark:border-white/10 dark:bg-black/30 sm:h-20 sm:w-20">
-                      <img
-                        v-if="checkoutItemImage(item)"
-                        :src="checkoutItemImage(item)"
-                        :alt="getLocalizedText(item.title)"
-                        loading="lazy"
-                        decoding="async"
-                        class="h-full w-full object-cover"
-                      />
-                      <div v-else class="flex h-full w-full items-center justify-center theme-text-muted">
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="1.5"
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div class="min-w-0">
-                      <router-link
-                        :to="`/products/${item.slug}`"
-                        class="line-clamp-2 font-semibold theme-link"
-                      >
-                        {{ getLocalizedText(item.title) }}
-                      </router-link>
-                      <div class="mt-1 text-xs theme-text-muted">{{ t('checkout.quantityLabel') }}：{{ item.quantity }}</div>
-                      <div v-if="itemSkuDisplay(item)" class="mt-1 text-xs theme-text-muted">{{ t('checkout.skuLabel') }}：{{ itemSkuDisplay(item) }}</div>
-                      <div
-                        v-if="itemStockHint(item)"
-                        class="mt-1 text-xs"
-                        :class="itemStockExceeded(item)
-                          ? 'text-amber-600 dark:text-amber-300'
-                          : 'theme-text-muted'"
-                      >
-                        {{ itemStockHint(item) }}
-                      </div>
-                      <div class="mt-2 flex flex-wrap gap-2">
-                        <span
-                          class="theme-badge text-xs uppercase tracking-wider"
-                          :class="item.purchaseType === 'guest'
-                            ? 'theme-badge-warning'
-                            : 'theme-badge-success'"
-                        >
-                          {{ item.purchaseType === 'guest' ? t('productPurchase.guest') : t('productPurchase.member') }}
-                        </span>
-                        <span
-                          class="theme-badge text-xs uppercase tracking-wider"
-                          :class="item.fulfillmentType === 'auto'
-                            ? 'theme-badge-info'
-                            : 'theme-badge-neutral'"
-                        >
-                          {{ item.fulfillmentType === 'auto' ? t('products.fulfillmentType.auto') : t('products.fulfillmentType.manual') }}
-                        </span>
-                      </div>
-                    </div>
+                <div class="flex min-w-0 items-start gap-3">
+                  <div class="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm dark:border-white/10 dark:bg-black/30 sm:h-20 sm:w-20">
+                    <SmartImage
+                      :src="checkoutItemImage(item)"
+                      :alt="getLocalizedText(item.title)"
+                      img-class="h-full w-full object-cover"
+                    />
                   </div>
-                  <div class="text-right">
-                    <div class="text-xs uppercase tracking-wider theme-text-muted">{{ t('checkout.previewTotal') }}</div>
-                    <div class="text-sm font-semibold theme-text-primary">{{ itemSubtotal(item) }}</div>
+                  <div class="min-w-0">
+                    <router-link
+                      :to="`/products/${item.slug}`"
+                      class="line-clamp-2 font-semibold theme-link"
+                    >
+                      {{ getLocalizedText(item.title) }}
+                    </router-link>
+                    <div class="mt-1 text-xs theme-text-muted">{{ t('checkout.quantityLabel') }}：{{ item.quantity }}</div>
+                    <div v-if="itemSkuDisplay(item)" class="mt-1 text-xs theme-text-muted">{{ t('checkout.skuLabel') }}：{{ itemSkuDisplay(item) }}</div>
+                    <div
+                      v-if="itemStockHint(item)"
+                      class="mt-1 text-xs"
+                      :class="itemStockExceeded(item)
+                        ? 'text-amber-600 dark:text-amber-300'
+                        : 'theme-text-muted'"
+                    >
+                      {{ itemStockHint(item) }}
+                    </div>
+                    <div class="mt-2 flex flex-wrap items-baseline gap-3">
+                      <span
+                        class="inline-flex items-baseline whitespace-nowrap"
+                        :class="checkoutItemHasPriceDiscount(item) ? 'text-rose-600 dark:text-rose-300' : 'theme-text-primary'"
+                      >
+                        <span class="text-xl font-black leading-none">{{ checkoutItemPriceParts(item).integer }}</span>
+                        <span class="text-xs font-semibold">{{ checkoutItemPriceParts(item).decimal }}</span>
+                        <span class="ml-1 text-xs font-semibold">{{ checkoutItemCurrency }}</span>
+                        <span v-if="checkoutItemHasPriceDiscount(item)" class="ml-1.5 text-xs font-normal">
+                          {{ t('checkout.discountedPriceLabel') }}
+                        </span>
+                      </span>
+                      <span
+                        v-if="checkoutItemHasPriceDiscount(item)"
+                        class="inline-flex items-baseline whitespace-nowrap text-xs text-gray-400 dark:text-gray-500"
+                      >
+                        <span>{{ checkoutItemOriginalPriceParts(item).integer }}</span>
+                        <span>{{ checkoutItemOriginalPriceParts(item).decimal }}</span>
+                        <span class="ml-1">{{ checkoutItemCurrency }}</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -228,11 +190,21 @@
             </div>
             <div class="flex items-center justify-between">
               <span>{{ t('checkout.previewCoupon') }}</span>
-              <span class="font-mono theme-text-primary">{{ formatPrice(previewCoupon, previewCurrency) }}</span>
+              <span
+                class="font-mono"
+                :class="hasPositiveAmount(previewCoupon) ? 'text-rose-600 dark:text-rose-300' : 'theme-text-primary'"
+              >
+                {{ formatDiscountPrice(previewCoupon, previewCurrency) }}
+              </span>
             </div>
             <div class="flex items-center justify-between">
               <span>{{ t('checkout.previewPromotion') }}</span>
-              <span class="font-mono theme-text-primary">{{ formatPrice(previewPromotion, previewCurrency) }}</span>
+              <span
+                class="font-mono"
+                :class="hasPositiveAmount(previewPromotion) ? 'text-rose-600 dark:text-rose-300' : 'theme-text-primary'"
+              >
+                {{ formatDiscountPrice(previewPromotion, previewCurrency) }}
+              </span>
             </div>
             <div v-if="Number(previewMemberDiscount) > 0" class="flex items-center justify-between">
               <span>{{ t('checkout.previewMemberDiscount') }}</span>
@@ -343,12 +315,15 @@ import { debounceAsync } from '../utils/debounce'
 import { pageAlertClass, type PageAlert } from '../utils/alerts'
 import { amountToCents, basisPointsToPercent, centsToAmount, parseInteger, rateToBasisPoints } from '../utils/money'
 import { buildSkuDisplayText, normalizeSkuId } from '../utils/sku'
-import { refreshCartStockSnapshots } from '../utils/cartStock'
+import { refreshCartStockSnapshots, cartItemPurchaseLimit as itemPurchaseLimit, cartItemPurchaseMin as itemPurchaseMin } from '../utils/cartStock'
 import { getImageUrl } from '../utils/image'
 import { getAffiliateCode, getAffiliateVisitorKey } from '../utils/affiliate'
 import ImageCaptcha from '../components/captcha/ImageCaptcha.vue'
 import TurnstileCaptcha from '../components/captcha/TurnstileCaptcha.vue'
 import CheckoutManualForm from '../components/checkout/CheckoutManualForm.vue'
+import EmptyState from '../components/EmptyState.vue'
+import SmartImage from '../components/SmartImage.vue'
+import CheckoutSteps from '../components/checkout/CheckoutSteps.vue'
 import { useLocalized } from '../composables/useProduct'
 
 const router = useRouter()
@@ -541,6 +516,25 @@ const previewCoupon = computed(() => preview.value?.discount_amount ?? '0')
 const previewPromotion = computed(() => preview.value?.promotion_discount_amount ?? '0')
 const previewMemberDiscount = computed(() => preview.value?.member_discount_amount ?? '0')
 const previewTotal = computed(() => preview.value?.total_amount ?? totalAmount.value)
+const checkoutItemCurrency = computed(() => previewCurrency.value)
+
+const previewItemsByKey = computed(() => {
+  const map = new Map<string, any>()
+  const items = Array.isArray(preview.value?.items) ? preview.value.items : []
+  for (const item of items) {
+    map.set(`${item.product_id}:${normalizeSkuId(item.sku_id)}`, item)
+  }
+  return map
+})
+
+const hasPositiveAmount = (amount: any) => {
+  const cents = amountToCents(amount)
+  return cents !== null && cents > 0
+}
+
+const formatDiscountPrice = (amount: any, currency?: any) => {
+  return hasPositiveAmount(amount) ? `-${formatPrice(amount, currency)}` : formatPrice(amount, currency)
+}
 
 const checkoutMode = ref<'guest' | 'member'>('guest')
 const guestEmail = ref('')
@@ -836,20 +830,6 @@ const buildManualFormDataPayload = () => {
 
 const manualFormFingerprint = computed(() => JSON.stringify(manualFormData.value))
 
-const flowSteps = computed(() => {
-  if (isBuyNowMode.value) {
-    return [
-      { key: 'checkout', label: t('checkout.title'), active: true },
-      { key: 'payment', label: t('payment.title'), active: false },
-    ]
-  }
-  return [
-    { key: 'cart', label: t('cart.title'), active: false },
-    { key: 'checkout', label: t('checkout.title'), active: true },
-    { key: 'payment', label: t('payment.title'), active: false },
-  ]
-})
-
 const isGuestCheckout = computed(() => !userAuthStore.isAuthenticated && checkoutMode.value === 'guest')
 const guestEmailValid = computed(() => {
   if (!isGuestCheckout.value) return true
@@ -892,6 +872,7 @@ const canSubmit = computed(() => {
   if (cartItems.value.length === 0) return false
   if (!manualFormValidation.value.valid) return false
   if (cartItems.value.some((item) => itemStockExceeded(item))) return false
+  if (cartItems.value.some((item) => itemMinNotMet(item))) return false
   if (walletOnlyPayment.value && expectedOnlinePayCents.value > 0) return false
   if (!walletOnlyPayment.value && requiresOnlineChannel.value && !selectedChannelId.value) return false
   if (requiresOnlineChannel.value && selectedChannelAmountHint.value) return false
@@ -917,6 +898,10 @@ const submitBlockedReason = computed(() => {
   const stockBlockedItem = cartItems.value.find((item) => itemStockExceeded(item))
   if (stockBlockedItem) {
     return itemStockHint(stockBlockedItem) || t('cart.stockOut')
+  }
+  const minBlockedItem = cartItems.value.find((item) => itemMinNotMet(item))
+  if (minBlockedItem) {
+    return t('cart.minPurchaseNotMet', { count: itemPurchaseMin(minBlockedItem) })
   }
   if (walletOnlyPayment.value && expectedOnlinePayCents.value > 0) return t('payment.walletInsufficientHint')
   if (!walletOnlyPayment.value && requiresOnlineChannel.value && !selectedChannelId.value) return t('checkout.errors.selectPayment')
@@ -1032,14 +1017,15 @@ const loadPreview = async () => {
     couponRefreshing.value = false
     return
   }
-  if (!manualFormValidation.value.valid) {
+
+  if (cartItems.value.some((item) => itemStockExceeded(item))) {
     preview.value = null
     orderPaymentChannels.value = []
     previewError.value = ''
     couponRefreshing.value = false
     return
   }
-  if (cartItems.value.some((item) => itemStockExceeded(item))) {
+  if (cartItems.value.some((item) => itemMinNotMet(item))) {
     preview.value = null
     orderPaymentChannels.value = []
     previewError.value = ''
@@ -1248,13 +1234,52 @@ const checkoutItemImage = (item: CartItem) => {
   return getImageUrl(rawImage)
 }
 
-const itemSubtotal = (item: CartItem) => {
+const cartItemSubtotalCents = (item: CartItem) => {
   const amountCents = amountToCents(item.priceAmount)
   const qty = parseInteger(item.quantity)
   if (amountCents === null || qty === null) {
-    return formatPrice('-', totalCurrency.value)
+    return null
   }
-  return formatPrice(centsToAmount(amountCents * qty), totalCurrency.value)
+  return amountCents * qty
+}
+
+const checkoutItemPreview = (item: CartItem) => previewItemsByKey.value.get(cartItemKey(item))
+
+const checkoutItemOriginalCents = (item: CartItem) => {
+  const previewItem = checkoutItemPreview(item)
+  const previewOriginalCents = amountToCents(previewItem?.original_total_price)
+  if (previewOriginalCents !== null) return previewOriginalCents
+  return cartItemSubtotalCents(item)
+}
+
+const checkoutItemPayableCents = (item: CartItem) => {
+  const previewItem = checkoutItemPreview(item)
+  const previewPayableCents = amountToCents(previewItem?.total_price)
+  if (previewPayableCents !== null) {
+    const couponDiscountCents = amountToCents(previewItem?.coupon_discount_amount) || 0
+    return Math.max(0, previewPayableCents - couponDiscountCents)
+  }
+  return checkoutItemOriginalCents(item)
+}
+
+const pricePartsFromCents = (cents: number | null) => {
+  if (cents === null) return { integer: '-', decimal: '' }
+  const amount = centsToAmount(Math.max(0, cents))
+  const [integer, decimal = ''] = amount.split('.')
+  return {
+    integer,
+    decimal: decimal ? `.${decimal}` : '',
+  }
+}
+
+const checkoutItemPriceParts = (item: CartItem) => pricePartsFromCents(checkoutItemPayableCents(item))
+
+const checkoutItemOriginalPriceParts = (item: CartItem) => pricePartsFromCents(checkoutItemOriginalCents(item))
+
+const checkoutItemHasPriceDiscount = (item: CartItem) => {
+  const originalCents = checkoutItemOriginalCents(item)
+  const payableCents = checkoutItemPayableCents(item)
+  return originalCents !== null && payableCents !== null && originalCents > payableCents
 }
 
 const normalizeStockNumber = (value: unknown) => {
@@ -1269,14 +1294,6 @@ const normalizeManualStockTotal = (value: unknown) => {
   const integerValue = Math.floor(numberValue)
   if (integerValue === -1) return -1
   return Math.max(integerValue, 0)
-}
-
-const normalizeOptionalLimitNumber = (value: unknown) => {
-  const numberValue = Number(value)
-  if (!Number.isFinite(numberValue)) return null
-  const integerValue = Math.floor(numberValue)
-  if (integerValue <= 0) return null
-  return integerValue
 }
 
 const hasItemStockSnapshot = (item: CartItem) => Boolean(String(item.skuStockSnapshotAt || '').trim())
@@ -1308,8 +1325,6 @@ const itemAvailableStock = (item: CartItem) => {
   return total
 }
 
-const itemPurchaseLimit = (item: CartItem) => normalizeOptionalLimitNumber(item.maxPurchaseQuantity)
-
 const itemMaxQuantity = (item: CartItem) => {
   const available = itemAvailableStock(item)
   const purchaseLimit = itemPurchaseLimit(item)
@@ -1325,10 +1340,19 @@ const itemStockExceeded = (item: CartItem) => {
   return qty > itemMaxQuantity(item)
 }
 
+const itemMinNotMet = (item: CartItem) => {
+  const qty = parseInteger(item.quantity)
+  if (qty === null) return false
+  return qty < itemPurchaseMin(item)
+}
+
 const itemStockHint = (item: CartItem) => {
   const available = itemAvailableStock(item)
   const purchaseLimit = itemPurchaseLimit(item)
   const maxQuantity = itemMaxQuantity(item)
+  if (itemMinNotMet(item)) {
+    return t('cart.minPurchaseNotMet', { count: itemPurchaseMin(item) })
+  }
   if (available === null && purchaseLimit === null) return ''
   if (maxQuantity <= 0) return t('cart.stockOut')
   if (itemStockExceeded(item)) {

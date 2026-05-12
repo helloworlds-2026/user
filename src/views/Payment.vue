@@ -11,23 +11,30 @@
             t('payment.backToOrders') }}</router-link>
       </div>
 
-      <div class="mb-8 rounded-2xl border border-gray-200 theme-panel-soft p-4 backdrop-blur">
-        <div class="grid grid-cols-3 gap-3">
-          <div
-            v-for="step in flowSteps"
-            :key="step.key"
-            class="theme-step-chip"
-            :class="step.active
-              ? 'theme-step-chip-active'
-              : 'theme-step-chip-inactive'"
-          >
-            {{ step.label }}
+      <CheckoutSteps class="mb-8" current-step="payment" />
+
+      <!-- Loading Skeleton -->
+      <div v-if="loading" class="space-y-6">
+        <div class="theme-panel rounded-2xl p-6 space-y-4">
+          <div class="flex items-center justify-between gap-4">
+            <div class="space-y-2">
+              <div class="h-5 w-40 rounded theme-skeleton"></div>
+              <div class="h-3 w-56 rounded theme-skeleton"></div>
+            </div>
+            <div class="h-7 w-20 rounded-full theme-skeleton"></div>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4 border-t theme-border">
+            <div class="lg:col-span-2 space-y-3">
+              <div class="w-full max-w-[260px] aspect-square rounded-xl theme-skeleton mx-auto lg:mx-0"></div>
+              <div class="h-3 w-48 rounded theme-skeleton"></div>
+            </div>
+            <div class="space-y-3">
+              <div class="h-4 w-24 rounded theme-skeleton"></div>
+              <div class="h-4 w-32 rounded theme-skeleton"></div>
+              <div class="h-4 w-28 rounded theme-skeleton"></div>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div v-if="loading"
-        class="h-40 border theme-surface-muted rounded-2xl animate-pulse">
       </div>
 
       <div v-else-if="showGuestAuthForm"
@@ -52,10 +59,13 @@
         </button>
       </div>
 
-      <div v-else-if="!order"
-        class="theme-panel rounded-2xl p-12 text-center">
-        <p class="theme-text-muted">{{ t('payment.orderNotFound') }}</p>
-      </div>
+      <EmptyState
+        v-else-if="!order"
+        icon="alert"
+        :title="t('payment.orderNotFound')"
+        :action-label="t('payment.backToOrders')"
+        :action-to="backLink"
+      />
 
       <div v-else-if="showResultView" class="space-y-6">
         <div class="theme-panel rounded-2xl p-6">
@@ -82,9 +92,11 @@
           <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-4">
               <div v-if="showQRCode"
-                class="theme-surface-soft border rounded-2xl p-6 flex flex-col items-center justify-center text-center">
+                class="theme-surface-soft border rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center text-center">
                 <div class="text-sm theme-text-muted mb-4">{{ paymentGuideTitle }}</div>
-                <img :src="qrImageUrl" alt="QR Code" class="w-56 h-56 object-contain" />
+                <div class="w-full max-w-[280px] sm:max-w-[240px] aspect-square rounded-xl overflow-hidden bg-white p-2">
+                  <img :src="qrImageUrl" alt="QR Code" class="w-full h-full object-contain" />
+                </div>
                 <div v-if="qrUsingPayLinkFallback" class="mt-3 text-xs theme-text-muted">
                   {{ t('payment.qrFallbackHint') }}
                 </div>
@@ -238,13 +250,21 @@
               </div>
               <div class="theme-surface-soft border rounded-xl p-3">
                 <div class="text-xs theme-text-muted">{{ t('orderDetail.amountDiscount') }}</div>
-                <div class="theme-text-primary font-mono mt-1">{{ formatMoney(order.discount_amount,
-                  order.currency) }}</div>
+                <div
+                  class="font-mono mt-1"
+                  :class="hasDiscountAmount(order.discount_amount) ? 'text-rose-600 dark:text-rose-300' : 'theme-text-primary'"
+                >
+                  {{ formatDiscountMoney(order.discount_amount, order.currency) }}
+                </div>
               </div>
               <div class="theme-surface-soft border rounded-xl p-3">
                 <div class="text-xs theme-text-muted">{{ t('orderDetail.promotionDiscountLabel') }}</div>
-                <div class="theme-text-primary font-mono mt-1">{{ formatMoney(order.promotion_discount_amount,
-                  order.currency) }}</div>
+                <div
+                  class="font-mono mt-1"
+                  :class="hasDiscountAmount(order.promotion_discount_amount) ? 'text-rose-600 dark:text-rose-300' : 'theme-text-primary'"
+                >
+                  {{ formatDiscountMoney(order.promotion_discount_amount, order.currency) }}
+                </div>
               </div>
             </div>
             <div class="mt-3 text-sm theme-text-muted">
@@ -468,6 +488,8 @@ import { amountToCents, basisPointsToPercent, calculateFeeCents, centsToAmount, 
 import { buildSkuDisplayTextFromSnapshot } from '../utils/sku'
 import PaymentAmountBreakdown from '../components/payment/PaymentAmountBreakdown.vue'
 import PaymentChannelSelector from '../components/payment/PaymentChannelSelector.vue'
+import EmptyState from '../components/EmptyState.vue'
+import CheckoutSteps from '../components/checkout/CheckoutSteps.vue'
 import QRCode from 'qrcode'
 import { pageAlertClass, type PageAlert } from '../utils/alerts'
 
@@ -567,12 +589,6 @@ const hasGuestAuth = computed(() => Boolean(guestAuth.value.email && guestAuth.v
 const showGuestAuthForm = computed(() => isGuest.value && (!hasGuestAuth.value || guestAuthError.value))
 const walletOnlyPayment = computed(() => !!appStore.config?.wallet_only_payment)
 const showBalanceOption = computed(() => !isGuest.value)
-
-const flowSteps = computed(() => ([
-  { key: 'cart', label: t('cart.title'), active: false },
-  { key: 'checkout', label: t('checkout.title'), active: false },
-  { key: 'payment', label: t('payment.title'), active: true },
-]))
 
 const filterChannelsByOrder = (list: any[]) => {
   if (!Array.isArray(list)) return []
@@ -1460,6 +1476,16 @@ const formatMoney = (amount?: string, currency?: string) => {
     return String(amount)
   }
   return `${amount} ${currency}`
+}
+
+const hasDiscountAmount = (amount?: string) => {
+  if (amount === null || amount === undefined || amount === '') return false
+  const valueCents = amountToCents(amount)
+  return valueCents !== null && valueCents > 0
+}
+
+const formatDiscountMoney = (amount?: string, currency?: string) => {
+  return hasDiscountAmount(amount) ? `-${formatMoney(amount, currency)}` : formatMoney(amount, currency)
 }
 
 const getLocalizedText = (jsonData: any) => {

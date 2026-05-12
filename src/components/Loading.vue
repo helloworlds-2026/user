@@ -9,7 +9,7 @@
             class="absolute inset-0 rounded-full border-2 border-transparent border-t-current animate-spin theme-text-primary">
           </div>
           <div
-            class="absolute inset-[10px] rounded-full theme-panel-muted border theme-border flex items-center justify-center">
+            class="absolute inset-[10px] rounded-full theme-surface-soft border flex items-center justify-center">
             <div
               class="w-2 h-2 rounded-full bg-current theme-text-muted">
             </div>

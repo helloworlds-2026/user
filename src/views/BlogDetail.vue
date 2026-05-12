@@ -61,6 +61,35 @@
             class="prose prose-lg max-w-none dark:prose-invert theme-prose">
           </div>
 
+          <!-- Related Products -->
+          <section v-if="relatedProducts.length"
+            class="mt-16 pt-12 border-t theme-border">
+            <h2 class="text-2xl font-bold theme-text-primary mb-8 flex items-center gap-3">
+              <span class="w-1.5 h-7 theme-accent-stick rounded-full"></span>
+              {{ t('blog.relatedProducts') }}
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              <router-link
+                v-for="rp in relatedProducts"
+                :key="rp.id"
+                :to="`/products/${rp.slug}`"
+                class="group flex items-center gap-4 theme-panel-soft backdrop-blur-md border rounded-2xl p-4 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+              >
+                <div v-if="rp.image"
+                  class="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-black/5 dark:bg-white/5">
+                  <img :src="getImageUrl(rp.image)" :alt="getLocalizedText(rp.title)" loading="lazy"
+                    class="h-full w-full object-cover transition-transform group-hover:scale-110" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="font-semibold theme-text-primary truncate">{{ getLocalizedText(rp.title) }}</div>
+                  <div class="mt-1 font-mono text-sm theme-text-muted">
+                    {{ formatPrice(rp.price_amount) }}
+                  </div>
+                </div>
+              </router-link>
+            </div>
+          </section>
+
           <!-- Footer -->
           <footer class="mt-16 pt-12 border-t theme-border flex justify-center">
             <router-link :to="backLink"
@@ -104,13 +133,17 @@ import { postAPI } from '../api'
 import { getImageUrl } from '../utils/image'
 import { processHtmlForDisplay } from '../utils/content'
 import { debounceAsync } from '../utils/debounce'
+import { useLocalized } from '../composables/useProduct'
+import { usePageSeo } from '../composables/usePageSeo'
 
 const route = useRoute()
 const { t } = useI18n()
 const appStore = useAppStore()
+const { formatPrice } = useLocalized()
 
 const loading = ref(true)
 const post = ref<any>(null)
+const relatedProducts = computed<any[]>(() => post.value?.related_products || [])
 
 const getLocalizedText = (jsonData: any) => {
   if (!jsonData) return ''
@@ -127,6 +160,14 @@ const formatDate = (dateString: string) => {
     day: 'numeric',
   })
 }
+
+usePageSeo({
+  title: () => post.value ? getLocalizedText(post.value.title) : '',
+  description: () => post.value ? getLocalizedText(post.value.summary) : '',
+  image: () => post.value?.thumbnail || '',
+  canonicalPath: () => `/blog/${(route.params.slug as string) || ''}`,
+  type: () => 'article',
+})
 
 const backLink = computed(() => {
   if (!post.value) return '/blog'

@@ -10,7 +10,7 @@
     <button
       v-if="visible"
       @click="scrollToTop"
-      class="fixed bottom-20 right-6 lg:bottom-6 z-40 flex h-11 w-11 items-center justify-center rounded-full border theme-btn-neutral shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5 theme-safe-bottom"
+      class="back-to-top fixed right-4 md:right-6 z-30 lg:z-40 flex h-11 w-11 items-center justify-center rounded-full border theme-btn-neutral shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5"
       :aria-label="t('common.backToTop')"
     >
       <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,3 +38,15 @@ const scrollToTop = () => {
 onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
 onUnmounted(() => window.removeEventListener('scroll', onScroll))
 </script>
+
+<style scoped>
+/* Mobile: sit above bottom nav (h-14 = 3.5rem) + safe area, with breathing room */
+.back-to-top {
+  bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px) + 1rem);
+}
+@media (min-width: 1024px) {
+  .back-to-top {
+    bottom: 1.5rem;
+  }
+}
+</style>

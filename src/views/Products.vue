@@ -66,29 +66,28 @@
             <PaginationNav
               :current-page="currentPage"
               :total-pages="totalPages"
+              :loading="loading"
               @change-page="changePage"
             />
           </div>
 
           <!-- Empty State -->
-          <div v-else
-            class="text-center py-20 border theme-panel-soft rounded-2xl backdrop-blur-sm theme-slide-up">
-            <svg class="w-20 h-20 mx-auto theme-text-muted mb-6" fill="none" stroke="currentColor"
-              viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
-            <p class="theme-text-muted text-lg">
-              {{ (searchQuery || selectedCategory) ? t('products.emptyFiltered') : t('products.empty') }}
-            </p>
-            <button
-              v-if="searchQuery || selectedCategory"
-              class="mt-4 theme-btn-inline-md border theme-btn-secondary font-semibold"
-              @click="clearSearch(); selectCategory(null)"
-            >
-              {{ t('products.clearFilters') }}
-            </button>
-          </div>
+          <EmptyState
+            v-else
+            variant="soft"
+            size="lg"
+            :icon="(searchQuery || selectedCategory) ? 'search' : 'package'"
+            :title="(searchQuery || selectedCategory) ? t('products.emptyFiltered') : t('products.empty')"
+          >
+            <template v-if="searchQuery || selectedCategory" #action>
+              <button
+                class="theme-btn-inline-md border theme-btn-secondary font-semibold"
+                @click="clearSearch(); selectCategory(null)"
+              >
+                {{ t('products.clearFilters') }}
+              </button>
+            </template>
+          </EmptyState>
         </main>
       </div>
     </div>
@@ -103,14 +102,17 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useProductList } from '../composables/useProductList'
+import { usePageSeo } from '../composables/usePageSeo'
+import { useLocalized } from '../composables/useProduct'
 import ProductCard from '../components/ProductCard.vue'
 import ProductQuickBuy from '../components/ProductQuickBuy.vue'
 import CategorySidebar from '../components/CategorySidebar.vue'
 import PaginationNav from '../components/PaginationNav.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -125,6 +127,7 @@ const {
   showFilterDrawer,
   expandedParentIds,
   categoryGroups,
+  categoryMap,
   selectCategory,
   toggleParentCategory,
   changePage,
@@ -132,6 +135,24 @@ const {
   initialize,
   cleanup,
 } = useProductList({ pageSize: 12, homeRouteName: 'products' })
+
+// ==================== SEO ====================
+const route = useRoute()
+const { getLocalizedText } = useLocalized()
+const seoCategoryName = computed(() => {
+  if (!selectedCategory.value) return ''
+  const cat = categoryMap.value.get(selectedCategory.value)
+  return cat ? getLocalizedText(cat.name) : ''
+})
+usePageSeo({
+  canonicalPath: () => route.path,
+  title: () => {
+    if (route.name === 'category-products') {
+      return seoCategoryName.value || t('nav.products')
+    }
+    return t('nav.products')
+  },
+})
 
 const quickBuyProduct = ref<any>(null)
 const quickBuyVisible = ref(false)

@@ -68,6 +68,8 @@
       :changing-password="userProfileStore.changingPassword"
       @submit="handleChangePassword"
     />
+
+    <TwoFactorSection v-if="canManagePassword" />
   </div>
 </template>
 
@@ -85,6 +87,7 @@ import TelegramBindingSection from '../../components/security/TelegramBindingSec
 import EmailChangeForm from '../../components/security/EmailChangeForm.vue'
 import LoginHistorySection from '../../components/security/LoginHistorySection.vue'
 import PasswordChangeForm from '../../components/security/PasswordChangeForm.vue'
+import TwoFactorSection from '../../components/security/TwoFactorSection.vue'
 
 const { t } = useI18n()
 const appStore = useAppStore()

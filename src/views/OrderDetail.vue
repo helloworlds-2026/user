@@ -1,36 +1,56 @@
 <template>
   <div class="min-h-screen theme-page pt-24 pb-16">
     <div class="container mx-auto px-4">
-      <div class="mb-8 flex items-center justify-between">
-        <div>
-          <h1 class="text-3xl font-black theme-text-primary mb-2">{{ t('orderDetail.title') }}</h1>
-          <p class="theme-text-muted text-sm">{{ t('orderDetail.subtitle') }}</p>
+      <BreadcrumbNav
+        class="mb-6"
+        :items="[
+          { label: t('nav.home'), to: '/' },
+          { label: t('orders.title'), to: '/me/orders' },
+          { label: t('orderDetail.title') },
+        ]"
+      />
+      <div class="mb-8">
+        <h1 class="text-3xl font-black theme-text-primary mb-2">{{ t('orderDetail.title') }}</h1>
+        <p class="theme-text-muted text-sm">{{ t('orderDetail.subtitle') }}</p>
+      </div>
+
+      <!-- Loading Skeleton -->
+      <div v-if="loading" class="space-y-6">
+        <div class="theme-panel rounded-2xl p-6 space-y-4">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="space-y-2">
+              <div class="h-3 w-20 rounded theme-skeleton"></div>
+              <div class="h-5 w-56 rounded theme-skeleton"></div>
+            </div>
+            <div class="h-7 w-24 rounded-full theme-skeleton"></div>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t theme-border">
+            <div v-for="i in 4" :key="i" class="space-y-2">
+              <div class="h-3 w-16 rounded theme-skeleton"></div>
+              <div class="h-4 w-24 rounded theme-skeleton"></div>
+            </div>
+          </div>
         </div>
-        <router-link to="/me/orders"
-          class="theme-link-muted text-sm">{{
-            t('orderDetail.backList') }}</router-link>
+        <div class="theme-panel rounded-2xl p-6 space-y-4">
+          <div class="h-5 w-28 rounded theme-skeleton"></div>
+          <div v-for="i in 2" :key="i" class="flex gap-4">
+            <div class="w-16 h-16 rounded-xl theme-skeleton shrink-0"></div>
+            <div class="flex-1 space-y-2">
+              <div class="h-4 w-3/4 rounded theme-skeleton"></div>
+              <div class="h-3 w-1/2 rounded theme-skeleton"></div>
+            </div>
+            <div class="h-5 w-20 rounded theme-skeleton"></div>
+          </div>
+        </div>
       </div>
 
-      <div v-if="loading"
-        class="h-40 border theme-surface-muted rounded-2xl animate-pulse">
-      </div>
-
-      <div v-else-if="!order"
-        class="theme-panel rounded-2xl p-12 text-center">
-        <svg class="mx-auto h-12 w-12 theme-text-muted opacity-50 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-        </svg>
-        <p class="theme-text-muted mb-4">{{ t('orderDetail.notFound') }}</p>
-        <button
-          @click="debouncedLoadOrder()"
-          class="inline-flex items-center gap-2 rounded-xl theme-btn-primary px-5 py-2.5 text-sm font-semibold"
-        >
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          {{ t('errorBoundary.retry') }}
-        </button>
-      </div>
+      <EmptyState
+        v-else-if="!order"
+        icon="alert"
+        :title="t('orderDetail.notFound')"
+        :action-label="t('errorBoundary.retry')"
+        @action="debouncedLoadOrder()"
+      />
 
       <div v-else class="space-y-6">
         <div class="theme-panel rounded-2xl p-6">
@@ -71,8 +91,12 @@
             </div>
             <div class="theme-surface-soft border rounded-xl p-4">
               <div class="text-xs theme-text-muted">{{ t('orderDetail.amountDiscount') }}</div>
-              <div class="theme-text-primary font-mono mt-1">{{ formatMoney(order.discount_amount,
-                order.currency) }}</div>
+              <div
+                class="font-mono mt-1"
+                :class="hasDiscountAmount(order.discount_amount) ? 'text-rose-600 dark:text-rose-300' : 'theme-text-primary'"
+              >
+                {{ formatDiscountMoney(order.discount_amount, order.currency) }}
+              </div>
             </div>
             <div class="theme-surface-soft border rounded-xl p-4">
               <div class="text-xs theme-text-muted">{{ t('orderDetail.amountTotal') }}</div>
@@ -96,7 +120,7 @@
             </div>
             <div v-if="hasDiscountAmount(order.member_discount_amount)" class="border border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/30 rounded-xl p-4">
               <div class="text-xs text-amber-700 dark:text-amber-400">{{ t('orderDetail.amountMemberDiscount') }}</div>
-              <div class="text-amber-700 dark:text-amber-400 font-mono mt-1">{{ formatMoney(order.member_discount_amount,
+              <div class="text-amber-700 dark:text-amber-400 font-mono mt-1">{{ formatDiscountMoney(order.member_discount_amount,
                 order.currency) }}</div>
             </div>
           </div>
@@ -157,24 +181,11 @@
               class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 border-b border-gray-100 pb-3 dark:border-white/5">
               <div class="flex min-w-0 items-start gap-3">
                 <div class="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm dark:border-white/10 dark:bg-black/30 sm:h-16 sm:w-16">
-                  <img
-                    v-if="orderItemImage(item)"
+                  <SmartImage
                     :src="orderItemImage(item)"
                     :alt="getLocalizedText(item.title)"
-                    loading="lazy"
-                    decoding="async"
-                    class="h-full w-full object-cover"
+                    img-class="h-full w-full object-cover"
                   />
-                  <div v-else class="flex h-full w-full items-center justify-center text-gray-400 dark:text-gray-500">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="1.5"
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                  </div>
                 </div>
                 <div class="min-w-0">
                   <div class="theme-text-primary font-medium">{{ getLocalizedText(item.title) }}</div>
@@ -199,19 +210,25 @@
                 </div>
               </div>
               <div class="shrink-0 pl-[4.25rem] sm:pl-0 text-left sm:text-right text-sm theme-text-muted space-y-1">
-                <div>{{ t('orderDetail.unitPriceLabel') }}：{{ formatMoney(item.unit_price, order.currency) }}</div>
-                <div>{{ t('orderDetail.totalPriceLabel') }}：{{ formatMoney(item.total_price, order.currency) }}</div>
+                <div>{{ t('orderDetail.unitPriceLabel') }}：{{ formatMoney(item.original_unit_price, order.currency) }}</div>
+                <div>{{ t('orderDetail.totalPriceLabel') }}：{{ formatMoney(item.original_total_price, order.currency) }}</div>
                 <div v-if="hasDiscountAmount(item.coupon_discount_amount)">
-                  {{ t('orderDetail.couponDiscountLabel') }}：{{ formatMoney(item.coupon_discount_amount, order.currency)
+                  {{ t('orderDetail.couponDiscountLabel') }}：{{ formatDiscountMoney(item.coupon_discount_amount, order.currency)
                   }}
                 </div>
                 <div v-if="hasDiscountAmount(item.promotion_discount_amount)">
-                  {{ t('orderDetail.promotionDiscountLabel') }}：{{ formatMoney(item.promotion_discount_amount,
+                  {{ t('orderDetail.promotionDiscountLabel') }}：{{ formatDiscountMoney(item.promotion_discount_amount,
                   order.currency) }}
                 </div>
-                <div v-if="hasDiscountAmount(item.member_discount_amount)" class="text-amber-700 dark:text-amber-400">
-                  {{ t('orderDetail.memberDiscountLabel') }}：{{ formatMoney(item.member_discount_amount,
+                <div v-if="hasDiscountAmount(item.member_discount_amount)">
+                  {{ t('orderDetail.memberDiscountLabel') }}：{{ formatDiscountMoney(item.member_discount_amount,
                   order.currency) }}
+                </div>
+                <div v-if="hasItemDiscount(item)" class="font-medium text-rose-600 dark:text-rose-300">
+                  {{ t('orderDetail.itemDiscountTotalLabel') }}：{{ formatItemDiscountTotal(item, order.currency) }}
+                </div>
+                <div class="font-medium theme-text-primary">
+                  {{ t('orderDetail.itemPaidAmountLabel') }}：{{ formatItemPaidAmount(item, order.currency) }}
                 </div>
               </div>
             </div>
@@ -244,24 +261,11 @@
                     class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 border-b border-gray-100 pb-3 text-sm theme-text-muted dark:border-white/5">
                     <div class="flex min-w-0 items-start gap-3">
                       <div class="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm dark:border-white/10 dark:bg-black/30 sm:h-16 sm:w-16">
-                        <img
-                          v-if="orderItemImage(item)"
+                        <SmartImage
                           :src="orderItemImage(item)"
                           :alt="getLocalizedText(item.title)"
-                          loading="lazy"
-                          decoding="async"
-                          class="h-full w-full object-cover"
+                          img-class="h-full w-full object-cover"
                         />
-                        <div v-else class="flex h-full w-full items-center justify-center text-gray-400 dark:text-gray-500">
-                          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="1.5"
-                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
-                        </div>
                       </div>
                       <div class="min-w-0">
                         <div class="theme-text-primary font-medium">{{ getLocalizedText(item.title) }}</div>
@@ -286,21 +290,27 @@
                       </div>
                     </div>
                     <div class="shrink-0 pl-[4.25rem] sm:pl-0 text-left sm:text-right text-sm theme-text-muted space-y-1">
-                      <div>{{ t('orderDetail.unitPriceLabel') }}：{{ formatMoney(item.unit_price, order.currency) }}
+                      <div>{{ t('orderDetail.unitPriceLabel') }}：{{ formatMoney(item.original_unit_price, order.currency) }}
                       </div>
-                      <div>{{ t('orderDetail.totalPriceLabel') }}：{{ formatMoney(item.total_price, order.currency) }}
+                      <div>{{ t('orderDetail.totalPriceLabel') }}：{{ formatMoney(item.original_total_price, order.currency) }}
                       </div>
                       <div v-if="hasDiscountAmount(item.coupon_discount_amount)">
-                        {{ t('orderDetail.couponDiscountLabel') }}：{{ formatMoney(item.coupon_discount_amount,
+                        {{ t('orderDetail.couponDiscountLabel') }}：{{ formatDiscountMoney(item.coupon_discount_amount,
                         order.currency) }}
                       </div>
                       <div v-if="hasDiscountAmount(item.promotion_discount_amount)">
-                        {{ t('orderDetail.promotionDiscountLabel') }}：{{ formatMoney(item.promotion_discount_amount,
+                        {{ t('orderDetail.promotionDiscountLabel') }}：{{ formatDiscountMoney(item.promotion_discount_amount,
                         order.currency) }}
                       </div>
-                      <div v-if="hasDiscountAmount(item.member_discount_amount)" class="text-amber-700 dark:text-amber-400">
-                        {{ t('orderDetail.memberDiscountLabel') }}：{{ formatMoney(item.member_discount_amount,
+                      <div v-if="hasDiscountAmount(item.member_discount_amount)">
+                        {{ t('orderDetail.memberDiscountLabel') }}：{{ formatDiscountMoney(item.member_discount_amount,
                         order.currency) }}
+                      </div>
+                      <div v-if="hasItemDiscount(item)" class="font-medium text-rose-600 dark:text-rose-300">
+                        {{ t('orderDetail.itemDiscountTotalLabel') }}：{{ formatItemDiscountTotal(item, order.currency) }}
+                      </div>
+                      <div class="font-medium theme-text-primary">
+                        {{ t('orderDetail.itemPaidAmountLabel') }}：{{ formatItemPaidAmount(item, order.currency) }}
                       </div>
                     </div>
                   </div>
@@ -435,11 +445,14 @@ import { orderStatusClass, orderStatusLabel } from '../utils/status'
 import { fulfillmentStatusLabel, fulfillmentTypeLabel } from '../utils/fulfillment'
 import { debounceAsync } from '../utils/debounce'
 import { copyText } from '../utils/clipboard'
-import { amountToCents } from '../utils/money'
+import { amountToCents, centsToAmount } from '../utils/money'
 import { buildSkuDisplayTextFromSnapshot } from '../utils/sku'
 import { getImageUrl } from '../utils/image'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
 import { toast } from '../composables/useToast'
+import EmptyState from '../components/EmptyState.vue'
+import BreadcrumbNav from '../components/BreadcrumbNav.vue'
+import SmartImage from '../components/SmartImage.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -615,10 +628,41 @@ const formatMoney = (amount?: string, currency?: string) => {
   return `${amount} ${currency}`
 }
 
+const formatDiscountMoney = (amount?: string, currency?: string) => {
+  return hasDiscountAmount(amount) ? `-${formatMoney(amount, currency)}` : formatMoney(amount, currency)
+}
+
 const hasDiscountAmount = (amount?: string) => {
   if (amount === null || amount === undefined || amount === '') return false
   const valueCents = amountToCents(amount)
   return valueCents !== null && valueCents > 0
+}
+
+const positiveAmountCents = (amount?: string) => {
+  const valueCents = amountToCents(amount)
+  return valueCents !== null && valueCents > 0 ? valueCents : 0
+}
+
+const itemDiscountTotalCents = (item: any) => {
+  return positiveAmountCents(item?.promotion_discount_amount)
+    + positiveAmountCents(item?.member_discount_amount)
+    + positiveAmountCents(item?.coupon_discount_amount)
+}
+
+const hasItemDiscount = (item: any) => itemDiscountTotalCents(item) > 0
+
+const formatItemDiscountTotal = (item: any, currency?: string) => {
+  return formatMoney(centsToAmount(itemDiscountTotalCents(item)), currency)
+}
+
+const itemPaidAmountCents = (item: any) => {
+  const totalCents = amountToCents(item?.total_price)
+  const paidCents = (totalCents !== null ? totalCents : 0) - positiveAmountCents(item?.coupon_discount_amount)
+  return Math.max(0, paidCents)
+}
+
+const formatItemPaidAmount = (item: any, currency?: string) => {
+  return formatMoney(centsToAmount(itemPaidAmountCents(item)), currency)
 }
 
 const hasAmount = (amount?: string) => {

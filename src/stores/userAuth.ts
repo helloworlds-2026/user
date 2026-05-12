@@ -20,6 +20,10 @@ export const useUserAuthStore = defineStore('user-auth', () => {
     const user = ref<any>(parsedUser)
     const loading = ref(false)
 
+    // 2FA 挑战中间状态（不持久化到 localStorage）
+    const challengeToken = ref<string>('')
+    const challengeExpiresAt = ref<string>('')
+
     const isAuthenticated = computed(() => !!token.value)
 
     const setToken = (newToken: string) => {
@@ -66,27 +70,60 @@ export const useUserAuthStore = defineStore('user-auth', () => {
         }
     }
 
+    const clearChallenge = () => {
+        challengeToken.value = ''
+        challengeExpiresAt.value = ''
+    }
+
     const login = async (payload: any) => {
         loading.value = true
         try {
             const response = await userAuthAPI.login(payload)
-            const { token: accessToken, user: userData } = response.data.data
+            return handleLoginResponse(response.data.data)
+        } finally {
+            loading.value = false
+        }
+    }
+
+    const verify2FA = async (payload: { code?: string; recovery_code?: string }) => {
+        if (!challengeToken.value) {
+            throw new Error('challenge_token_missing')
+        }
+        loading.value = true
+        try {
+            const response = await userAuthAPI.verify2FA({
+                challenge_token: challengeToken.value,
+                ...payload,
+            })
+            const data = response.data.data || {}
+            const { token: accessToken, user: userData } = data
             setToken(accessToken)
             setUser(userData)
+            clearChallenge()
             return true
         } finally {
             loading.value = false
         }
     }
 
+    const handleLoginResponse = (data: any): { requiresTotp: boolean } => {
+        if (data?.requires_totp) {
+            challengeToken.value = data.challenge_token || ''
+            challengeExpiresAt.value = data.challenge_expires_at || ''
+            return { requiresTotp: true }
+        }
+        clearChallenge()
+        const { token: accessToken, user: userData } = data || {}
+        setToken(accessToken)
+        setUser(userData)
+        return { requiresTotp: false }
+    }
+
     const telegramLogin = async (payload: any) => {
         loading.value = true
         try {
             const response = await userAuthAPI.telegramLogin(payload)
-            const { token: accessToken, user: userData } = response.data.data
-            setToken(accessToken)
-            setUser(userData)
-            return true
+            return handleLoginResponse(response.data.data)
         } finally {
             loading.value = false
         }
@@ -96,10 +133,7 @@ export const useUserAuthStore = defineStore('user-auth', () => {
         loading.value = true
         try {
             const response = await userAuthAPI.telegramMiniAppLogin({ init_data: initData })
-            const { token: accessToken, user: userData } = response.data.data
-            setToken(accessToken)
-            setUser(userData)
-            return true
+            return handleLoginResponse(response.data.data)
         } finally {
             loading.value = false
         }
@@ -137,10 +171,14 @@ export const useUserAuthStore = defineStore('user-auth', () => {
         token,
         user,
         loading,
+        challengeToken,
+        challengeExpiresAt,
         isAuthenticated,
         sendVerifyCode,
         register,
         login,
+        verify2FA,
+        clearChallenge,
         telegramLogin,
         telegramMiniAppLogin,
         forgotPassword,

@@ -33,17 +33,14 @@
 
       <!-- Product Content -->
       <div v-else-if="product">
-        <!-- Breadcrumb -->
-        <nav class="mb-8 flex items-center space-x-2 text-sm theme-text-muted font-medium">
-          <router-link to="/" class="theme-link-muted">{{ t('nav.home')
-          }}</router-link>
-          <span>/</span>
-          <router-link to="/products" class="theme-link-muted">{{
-            t('nav.products') }}</router-link>
-          <span>/</span>
-          <span class="theme-text-primary truncate max-w-[200px]">{{ getLocalizedText(product.title)
-          }}</span>
-        </nav>
+        <BreadcrumbNav
+          class="mb-8"
+          :items="[
+            { label: t('nav.home'), to: '/' },
+            { label: t('nav.products'), to: '/products' },
+            { label: getLocalizedText(product.title) },
+          ]"
+        />
 
         <!-- Main Info Card -->
         <div
@@ -258,8 +255,8 @@
                     <button
                       type="button"
                       class="w-10 h-10 flex items-center justify-center theme-text-secondary hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-30"
-                      :disabled="quantity <= 1"
-                      @click="quantity = Math.max(1, quantity - 1)"
+                      :disabled="quantity <= quantityEffectiveMin"
+                      @click="quantity = Math.max(quantityEffectiveMin, quantity - 1)"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                         <path stroke-linecap="round" d="M20 12H4" />
@@ -330,6 +327,37 @@
           </div>
         </div>
 
+        <!-- Related Posts -->
+        <section v-if="relatedPosts.length"
+          class="theme-panel backdrop-blur-xl border rounded-3xl overflow-hidden mb-12 p-6 md:p-8 lg:p-12 relative">
+          <h2 class="text-2xl font-bold theme-text-primary mb-8 flex items-center gap-3 border-b theme-border pb-6">
+            <span class="w-1.5 h-8 theme-accent-stick rounded-full"></span>
+            {{ t('productDetail.relatedPosts') }}
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <router-link
+              v-for="rp in relatedPosts"
+              :key="rp.id"
+              :to="`/blog/${rp.slug}`"
+              class="group theme-panel-soft backdrop-blur-md border rounded-2xl overflow-hidden hover:shadow-xl hover:-translate-y-0.5 transition-all flex flex-col"
+            >
+              <div v-if="rp.thumbnail" class="h-32 overflow-hidden relative">
+                <img :src="getImageUrl(rp.thumbnail)" :alt="getLocalizedText(rp.title)" loading="lazy"
+                  class="h-full w-full object-cover transition-transform group-hover:scale-110" />
+              </div>
+              <div class="p-5 flex flex-col flex-1">
+                <h3 class="font-semibold theme-text-primary line-clamp-2 mb-2">{{ getLocalizedText(rp.title) }}</h3>
+                <p v-if="rp.summary" class="text-sm theme-text-secondary line-clamp-2 leading-relaxed mb-3">
+                  {{ getLocalizedText(rp.summary) }}
+                </p>
+                <time class="mt-auto text-xs theme-text-muted font-mono">
+                  {{ formatRelatedPostDate(rp.published_at) }}
+                </time>
+              </div>
+            </router-link>
+          </div>
+        </section>
+
         <!-- Back Button -->
         <div class="mb-12 text-center">
           <router-link to="/products"
@@ -362,32 +390,30 @@
       </div>
 
       <!-- Error State -->
-      <div v-else
-        class="text-center py-24 theme-panel rounded-3xl border backdrop-blur-sm theme-slide-up">
-        <svg class="w-20 h-20 mx-auto theme-text-muted mb-6" fill="none" stroke="currentColor"
-          viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p class="theme-text-muted text-xl mb-8">
-          {{ t('productDetail.notFound') }}
-        </p>
-        <div class="flex flex-wrap items-center justify-center gap-4">
+      <EmptyState
+        v-else
+        size="lg"
+        icon="alert"
+        :title="t('productDetail.notFound')"
+      >
+        <template #action>
           <button
             @click="loadProduct"
-            class="inline-flex items-center gap-2 theme-btn-primary px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform"
+            class="inline-flex items-center gap-2 theme-btn-primary px-6 py-2.5 rounded-full font-semibold transition-transform hover:scale-105"
           >
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             {{ t('errorBoundary.retry') }}
           </button>
-          <router-link to="/products"
-            class="inline-block border theme-btn-secondary px-8 py-3 rounded-full font-bold hover:scale-105 transition-transform">
+          <router-link
+            to="/products"
+            class="inline-flex items-center border theme-btn-secondary px-6 py-2.5 rounded-full font-semibold transition-transform hover:scale-105"
+          >
             {{ t('productDetail.backToProducts') }}
           </router-link>
-        </div>
-      </div>
+        </template>
+      </EmptyState>
     </div>
   </div>
 </template>
@@ -411,6 +437,8 @@ import { useLocalized, useProductLabels } from '../composables/useProduct'
 import { toast } from '../composables/useToast'
 import ProductImageGallery from '../components/product/ProductImageGallery.vue'
 import ProductMobileBar from '../components/product/ProductMobileBar.vue'
+import BreadcrumbNav from '../components/BreadcrumbNav.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -441,6 +469,12 @@ const formatPromotionRule = (rule: any) => {
 
 const loading = ref(true)
 const product = ref<any>(null)
+const relatedPosts = computed<any[]>(() => product.value?.related_posts || [])
+const formatRelatedPostDate = (dateString: string) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString(appStore.locale, { year: 'numeric', month: 'long', day: 'numeric' })
+}
 const currentImage = ref<string>('')
 const selectedSkuId = ref(0)
 const quantity = ref(1)
@@ -569,10 +603,16 @@ const quantityEffectiveLimit = computed(() => {
   return limit
 })
 
+const quantityEffectiveMin = computed(() => {
+  const productMin = normalizeOptionalLimitNumber(product.value?.min_purchase_quantity)
+  return productMin && productMin > 0 ? productMin : 1
+})
+
 const handleQuantityInput = (event: Event) => {
   const val = parseInt((event.target as HTMLInputElement).value, 10)
-  if (isNaN(val) || val < 1) {
-    quantity.value = 1
+  const minimum = quantityEffectiveMin.value
+  if (isNaN(val) || val < minimum) {
+    quantity.value = minimum
   } else if (quantityEffectiveLimit.value !== null && val > quantityEffectiveLimit.value) {
     quantity.value = quantityEffectiveLimit.value
   } else {
@@ -583,6 +623,11 @@ const handleQuantityInput = (event: Event) => {
 const purchaseType = computed(() => product.value?.purchase_type || 'member')
 const requiresLogin = computed(() => purchaseType.value === 'member' && !userAuthStore.isAuthenticated)
 const requiresSKUSelection = computed(() => activeSkus.value.length > 1 && !selectedSku.value)
+const stockBelowMinPurchase = computed(() => {
+  const limit = quantityEffectiveLimit.value
+  if (limit === null) return false
+  return limit < quantityEffectiveMin.value
+})
 const canPurchase = computed(() => {
   if (!product.value) return false
   if (activeSkus.value.length === 0) return false
@@ -590,12 +635,14 @@ const canPurchase = computed(() => {
   if (requiresSKUSelection.value) return false
   if (product.value.stock_status === 'out_of_stock') return false
   if (selectedSku.value && !isSkuPurchasable(selectedSku.value)) return false
+  if (stockBelowMinPurchase.value) return false
   return true
 })
 const cannotPurchaseReason = computed(() => {
   if (!product.value) return ''
   if (requiresLogin.value) return ''
   if (requiresSKUSelection.value) return t('productDetail.skuRequired')
+  if (stockBelowMinPurchase.value) return t('productDetail.stockBelowMinPurchase', { count: quantityEffectiveMin.value })
   if (canPurchase.value) return ''
   return t('productDetail.stockUnavailable')
 })
@@ -700,6 +747,7 @@ const addToCart = () => {
     title: product.value.title,
     priceAmount: String(sku?.price_amount || product.value.price_amount || '0.00'),
     image: images.value[0],
+    minPurchaseQuantity: normalizeOptionalLimitNumber(product.value.min_purchase_quantity) ?? undefined,
     maxPurchaseQuantity: normalizeOptionalLimitNumber(product.value.max_purchase_quantity) ?? undefined,
     purchaseType: product.value.purchase_type,
     fulfillmentType: product.value.fulfillment_type,
@@ -748,6 +796,7 @@ const buyNow = () => {
     title: product.value.title,
     priceAmount: String(sku?.price_amount || product.value.price_amount || '0.00'),
     image: images.value[0],
+    minPurchaseQuantity: normalizeOptionalLimitNumber(product.value.min_purchase_quantity) ?? undefined,
     maxPurchaseQuantity: normalizeOptionalLimitNumber(product.value.max_purchase_quantity) ?? undefined,
     purchaseType: product.value.purchase_type,
     fulfillmentType: product.value.fulfillment_type,
@@ -842,7 +891,9 @@ const debouncedLoadProduct = debounceAsync(loadProduct, 300)
 
 const canonicalUrl = computed(() => {
   if (!product.value?.slug) return ''
-  return `${window.location.origin}/products/${product.value.slug}`
+  const fromConfig = String(appStore.config?.brand?.site_url || '').trim().replace(/\/+$/, '')
+  const base = fromConfig || window.location.origin.replace(/\/+$/, '')
+  return `${base}/products/${product.value.slug}`
 })
 
 useHead({
@@ -931,13 +982,19 @@ watch(
   () => selectedSkuId.value,
   () => {
     purchaseWarning.value = ''
-    quantity.value = 1
+    quantity.value = quantityEffectiveMin.value
   }
 )
 
+watch(quantityEffectiveMin, (minimum) => {
+  if (minimum > quantity.value) {
+    quantity.value = minimum
+  }
+})
+
 watch(quantityEffectiveLimit, (limit) => {
   if (limit !== null && quantity.value > limit) {
-    quantity.value = Math.max(1, limit)
+    quantity.value = Math.max(quantityEffectiveMin.value, limit)
   }
 })
 
