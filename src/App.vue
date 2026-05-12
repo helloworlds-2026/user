@@ -1,5 +1,5 @@
 <template>
-  <!-- Config loading screen: blocks rendering until site config is fetched -->
+  <!-- Config loading screen -->
   <div v-if="!appStore.config" class="fixed inset-0 theme-page flex items-center justify-center z-[9999]">
     <div class="flex flex-col items-center gap-4">
       <svg class="w-10 h-10 animate-spin text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24">
@@ -20,7 +20,9 @@
         </RouterView>
       </ErrorBoundary>
     </main>
-    <Footer />
+
+    <!-- ✅ Footer 已移除 -->
+
     <Loading :loading="appStore.loading" />
     <Toast />
     <ConfirmDialog />
@@ -32,7 +34,6 @@
 <script setup lang="ts">
 import { useAppStore } from './stores/app'
 import Navbar from './components/Navbar.vue'
-import Footer from './components/Footer.vue'
 import Loading from './components/Loading.vue'
 import Toast from './components/Toast.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
