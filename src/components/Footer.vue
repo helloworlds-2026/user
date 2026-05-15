@@ -119,6 +119,9 @@ import { useAppStore } from '../stores/app'
 const { t } = useI18n()
 const appStore = useAppStore()
 
+/** 页脚版权年份（构建时确定，满足 vue-tsc 对模板变量的检查） */
+const currentYear = new Date().getFullYear()
+
 const config = computed(() => appStore.config)
 
 const brandSiteName = computed(() => {
