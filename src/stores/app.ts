@@ -3,10 +3,13 @@ import { computed, ref } from 'vue'
 import { configAPI } from '../api'
 import { applyCustomScripts } from '../utils/customScripts'
 import { getImageUrl } from '../utils/image'
+import { detectLocale } from '../i18n'
 import { useHead } from '@unhead/vue'
 
 export const useAppStore = defineStore('app', () => {
-    const locale = ref(localStorage.getItem('locale') || 'zh-CN')
+    // 与 vue-i18n 复用同一套语言检测逻辑，避免首次访问时
+    // UI 语言（vue-i18n）与商品多语言取值（appStore.locale）不一致
+    const locale = ref(detectLocale())
     const config = ref<any>(null)
     const loading = ref(false)
     // 服务器与客户端的时间偏移量（毫秒），serverTime = clientTime + offset

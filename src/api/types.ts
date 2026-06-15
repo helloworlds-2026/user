@@ -125,6 +125,10 @@ export interface WalletRechargeResult {
     interaction_mode?: string
     pay_url?: string
     qr_code?: string
+    wallet_address?: string
+    chain_amount?: string
+    chain?: string
+    token_id?: string
     expires_at?: string
     status?: string
 }
@@ -202,6 +206,10 @@ export interface PaymentCreateResult {
     interaction_mode?: string
     pay_url?: string
     qr_code?: string
+    wallet_address?: string
+    chain_amount?: string
+    chain?: string
+    token_id?: string
     expires_at?: string
 }
 

@@ -15,6 +15,9 @@ export const userAuthAPI = {
             params: { telegram_user_id: telegramUserID },
             silentBusinessError: true,
         }),
+    telegramOidcStart: () => userApi.get('/auth/telegram/oidc/start'),
+    telegramOidcCallback: (data: { code: string; state: string }) =>
+        userApi.post('/auth/telegram/oidc/callback', data),
     forgotPassword: (data: any) => userApi.post('/auth/forgot-password', data),
 }
 

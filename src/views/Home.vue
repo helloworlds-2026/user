@@ -359,6 +359,13 @@
       :visible="quickBuyVisible"
       @update:visible="quickBuyVisible = $event"
     />
+
+    <AnnouncementModal
+      v-if="activeAnnouncement"
+      :announcement="activeAnnouncement"
+      :visible="announcementVisible"
+      @update:visible="announcementVisible = $event"
+    />
   </div>
 </template>
 
@@ -379,6 +386,8 @@ import ProductListItem from '../components/ProductListItem.vue'
 import ProductQuickBuy from '../components/ProductQuickBuy.vue'
 import CategorySidebar from '../components/CategorySidebar.vue'
 import PaginationNav from '../components/PaginationNav.vue'
+import AnnouncementModal from '../components/AnnouncementModal.vue'
+import { useAnnouncement, type HomeAnnouncement } from '../composables/useAnnouncement'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -396,6 +405,10 @@ const products = ref<any[]>([])
 const posts = ref<any[]>([])
 const quickBuyProduct = ref<any>(null)
 const quickBuyVisible = ref(false)
+
+const { shouldShow } = useAnnouncement()
+const activeAnnouncement = ref<HomeAnnouncement | null>(null)
+const announcementVisible = ref(false)
 
 const openQuickBuy = (product: any) => {
   quickBuyProduct.value = product
@@ -503,12 +516,22 @@ const loadLatestPosts = async () => {
 }
 
 // ==================== Lifecycle ====================
+const showAnnouncementIfNeeded = () => {
+  const announcement = appStore.config?.announcement as HomeAnnouncement | undefined
+  if (announcement && shouldShow(announcement)) {
+    activeAnnouncement.value = announcement
+    announcementVisible.value = true
+  }
+}
+
 onMounted(async () => {
+  await appStore.loadConfig()
   if (templateMode.value === 'list') {
     await Promise.all([loadBanners(), listInitialize()])
   } else {
     await Promise.all([loadBanners(), loadFeaturedProducts(), loadLatestPosts()])
   }
+  showAnnouncementIfNeeded()
 })
 
 onUnmounted(() => {

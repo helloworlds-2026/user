@@ -99,6 +99,11 @@
               <div class="text-amber-700 dark:text-amber-400 font-mono mt-1">{{ formatDiscountMoney(order.member_discount_amount,
                 order.currency) }}</div>
             </div>
+            <div v-if="hasDiscountAmount(order.wholesale_discount_amount)" class="border border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30 rounded-xl p-4">
+              <div class="text-xs text-emerald-700 dark:text-emerald-400">{{ t('orderDetail.amountWholesaleDiscount') }}</div>
+              <div class="text-emerald-700 dark:text-emerald-400 font-mono mt-1">{{ formatDiscountMoney(order.wholesale_discount_amount,
+                order.currency) }}</div>
+            </div>
           </div>
         </div>
 
@@ -207,6 +212,10 @@
                 </div>
                 <div v-if="hasDiscountAmount(item.promotion_discount_amount)">
                   {{ t('orderDetail.promotionDiscountLabel') }}：{{ formatDiscountMoney(item.promotion_discount_amount,
+                  order.currency) }}
+                </div>
+                <div v-if="hasDiscountAmount(item.wholesale_discount_amount)">
+                  {{ t('orderDetail.wholesaleDiscountLabel') }}：{{ formatDiscountMoney(item.wholesale_discount_amount,
                   order.currency) }}
                 </div>
                 <div v-if="hasDiscountAmount(item.member_discount_amount)">
@@ -651,6 +660,7 @@ const positiveAmountCents = (amount?: string) => {
 
 const itemDiscountTotalCents = (item: any) => {
   return positiveAmountCents(item?.promotion_discount_amount)
+    + positiveAmountCents(item?.wholesale_discount_amount)
     + positiveAmountCents(item?.member_discount_amount)
     + positiveAmountCents(item?.coupon_discount_amount)
 }

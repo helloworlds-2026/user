@@ -82,7 +82,7 @@
                 class="theme-btn-inline-md border theme-btn-secondary disabled:opacity-60">
                 {{ t('payment.refreshStatus') }}
               </button>
-              <button @click="resetPayment"
+              <button @click="handleChangePaymentMethod"
                 class="theme-btn-inline-md border theme-btn-secondary">
                 {{ t('payment.changeMethod') }}
               </button>
@@ -99,6 +99,25 @@
                 </div>
                 <div v-if="qrUsingPayLinkFallback" class="mt-3 text-xs theme-text-muted">
                   {{ t('payment.qrFallbackHint') }}
+                </div>
+                <div v-if="hasCryptoPaymentDetails" class="mt-4 w-full max-w-xl space-y-2 rounded-xl border theme-border bg-white/5 p-3 text-left">
+                  <div
+                    v-for="item in cryptoPaymentDetails"
+                    :key="item.key"
+                    class="flex flex-col gap-1 border-b theme-border pb-2 last:border-b-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+                  >
+                    <span class="shrink-0 text-xs theme-text-muted">{{ item.label }}</span>
+                    <span class="min-w-0 text-sm font-semibold theme-text-primary break-all sm:text-right">
+                      {{ item.value }}
+                      <span v-if="item.detail" class="ml-1 font-normal theme-text-muted">({{ item.detail }})</span>
+                    </span>
+                  </div>
+                  <div v-if="cryptoWalletAddress" class="flex flex-wrap items-center justify-end gap-2 pt-1">
+                    <button @click="handleCopyWalletAddress" class="px-3 py-1.5 rounded-lg border theme-btn-secondary text-xs">
+                      {{ t('payment.copyWalletAddress') }}
+                    </button>
+                    <span v-if="walletAddressCopied" class="text-xs text-emerald-500">{{ t('payment.copied') }}</span>
+                  </div>
                 </div>
               </div>
 
@@ -151,6 +170,8 @@
                 :countdown-text="countdownText"
                 :polling-active="pollingActive"
                 :format-money="formatMoney"
+                :format-discount-money="formatDiscountMoney"
+                :has-discount-amount="hasDiscountAmount"
               />
               <div v-if="paymentResult.expires_at"
                 class="theme-surface-soft border rounded-2xl p-4 text-xs theme-text-muted">
@@ -264,6 +285,12 @@
                   :class="hasDiscountAmount(order.promotion_discount_amount) ? 'text-rose-600 dark:text-rose-300' : 'theme-text-primary'"
                 >
                   {{ formatDiscountMoney(order.promotion_discount_amount, order.currency) }}
+                </div>
+              </div>
+              <div v-if="hasDiscountAmount(order.wholesale_discount_amount)" class="border border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30 rounded-xl p-3">
+                <div class="text-xs text-emerald-700 dark:text-emerald-400">{{ t('orderDetail.amountWholesaleDiscount') }}</div>
+                <div class="text-emerald-700 dark:text-emerald-400 font-mono mt-1">
+                  {{ formatDiscountMoney(order.wholesale_discount_amount, order.currency) }}
                 </div>
               </div>
             </div>
@@ -390,6 +417,25 @@
                 <div v-if="qrUsingPayLinkFallback" class="text-xs theme-text-muted">
                   {{ t('payment.qrFallbackHint') }}
                 </div>
+                <div v-if="hasCryptoPaymentDetails" class="space-y-2 rounded-xl border theme-border bg-white/5 p-3">
+                  <div
+                    v-for="item in cryptoPaymentDetails"
+                    :key="item.key"
+                    class="flex flex-col gap-1 border-b theme-border pb-2 last:border-b-0 last:pb-0"
+                  >
+                    <span class="text-xs theme-text-muted">{{ item.label }}</span>
+                    <span class="min-w-0 font-semibold theme-text-primary break-all">
+                      {{ item.value }}
+                      <span v-if="item.detail" class="ml-1 font-normal theme-text-muted">({{ item.detail }})</span>
+                    </span>
+                  </div>
+                  <div v-if="cryptoWalletAddress" class="flex flex-wrap items-center gap-2 pt-1">
+                    <button @click="handleCopyWalletAddress" class="px-3 py-1.5 rounded-lg border theme-btn-secondary font-bold text-xs">
+                      {{ t('payment.copyWalletAddress') }}
+                    </button>
+                    <span v-if="walletAddressCopied" class="text-xs text-emerald-500">{{ t('payment.copied') }}</span>
+                  </div>
+                </div>
                 <div v-if="paymentResult.pay_url" class="pt-2 flex flex-wrap items-center gap-2">
                   <button @click="handleCopyPayLink"
                     class="px-3 py-1.5 rounded-lg border theme-btn-secondary font-bold text-xs">
@@ -486,6 +532,12 @@ import { debounceAsync } from '../utils/debounce'
 import { copyText } from '../utils/clipboard'
 import { amountToCents, basisPointsToPercent, calculateFeeCents, centsToAmount, rateToBasisPoints } from '../utils/money'
 import { buildSkuDisplayTextFromSnapshot } from '../utils/sku'
+import {
+  getCachedPaymentRestorePolicy,
+  getPaymentResetPolicy,
+  shouldAutoOpenPaymentLink,
+  type PaymentResetReason,
+} from '../utils/paymentResumePolicy'
 import PaymentAmountBreakdown from '../components/payment/PaymentAmountBreakdown.vue'
 import PaymentChannelSelector from '../components/payment/PaymentChannelSelector.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -506,6 +558,7 @@ const paymentResult = ref<any>(null)
 const error = ref('')
 const selectedChannelId = ref<number | null>(null)
 const copied = ref(false)
+const walletAddressCopied = ref(false)
 const capturing = ref(false)
 const redirecting = ref(false)
 const redirected = ref(false)
@@ -521,6 +574,7 @@ const pollTimer = ref<number | null>(null)
 const countdownTimer = ref<number | null>(null)
 const now = ref(appStore.getServerTime())
 const copiedTimer = ref<number | null>(null)
+const walletAddressCopiedTimer = ref<number | null>(null)
 const redirectTimer = ref<number | null>(null)
 const walletLoading = ref(false)
 const walletBalance = ref('0')
@@ -565,7 +619,7 @@ const readRouteQueryFlag = (key: string): boolean => {
   return value === '1' || value === 'true' || value === 'yes'
 }
 
-const paymentReturnMarkers = ['epay_return', 'alipay_return', 'wechat_return', 'epusdt_return', 'tokenpay_return', 'okpay_return', 'pp_return', 'stripe_return']
+const paymentReturnMarkers = ['epay_return', 'alipay_return', 'wechat_return', 'epusdt_return', 'bepusdt_return', 'tokenpay_return', 'okpay_return', 'pp_return', 'stripe_return']
 const rechargeBizType = computed(() => readRouteQueryValue('biz_type').toLowerCase())
 const rechargeNoQuery = computed(() => {
   const rechargeNo = readRouteQueryValue('recharge_no')
@@ -638,6 +692,15 @@ const resultChannel = computed(() => findChannelByID(paymentResult.value?.channe
 
 const resultChannelName = computed(() => resolveChannelName(resultChannel.value, paymentResult.value?.channel_type, paymentResult.value?.channel_name))
 
+const currentPaymentID = () => {
+  const paymentID = Number(paymentResult.value?.payment_id || paymentResult.value?.id || 0)
+  return Number.isFinite(paymentID) && paymentID > 0 ? paymentID : 0
+}
+
+const paymentProviderType = computed(() => String(paymentResult.value?.provider_type || resultChannel.value?.provider_type || '').toLowerCase())
+
+const paymentChannelType = computed(() => String(paymentResult.value?.channel_type || resultChannel.value?.channel_type || '').toLowerCase())
+
 const interactionLabel = computed(() => {
   if (!paymentResult.value?.interaction_mode) return '-'
   const mode = String(paymentResult.value.interaction_mode).toLowerCase()
@@ -662,6 +725,67 @@ const payLinkOpenedTip = computed(() => (
 
 const payLink = computed(() => String(paymentResult.value?.pay_url || '').trim())
 const qrCodeContent = computed(() => String(paymentResult.value?.qr_code || '').trim())
+const cryptoWalletAddress = computed(() => String(paymentResult.value?.wallet_address || '').trim())
+const cryptoChainAmount = computed(() => String(paymentResult.value?.chain_amount || '').trim())
+const cryptoChain = computed(() => String(paymentResult.value?.chain || '').trim())
+const cryptoTokenID = computed(() => String(paymentResult.value?.token_id || '').trim())
+const cryptoTokenLabel = computed(() => {
+  const tokenID = cryptoTokenID.value
+  if (!tokenID) return ''
+  const parts = tokenID.split('-').filter(Boolean)
+  return String(parts[parts.length - 1] || tokenID).toUpperCase()
+})
+const cryptoTokenDetail = computed(() => {
+  if (!cryptoTokenID.value) return ''
+  return cryptoTokenID.value.toUpperCase() === cryptoTokenLabel.value ? '' : cryptoTokenID.value
+})
+const formatCryptoChain = (value: string) => {
+  const normalized = value.trim().toLowerCase()
+  const labels: Record<string, string> = {
+    tron: 'TRON',
+    trc20: 'TRON',
+    base: 'Base',
+    ethereum: 'Ethereum',
+    eth: 'Ethereum',
+    bsc: 'BNB Smart Chain',
+    polygon: 'Polygon',
+  }
+  return labels[normalized] || value
+}
+const cryptoPaymentDetails = computed(() => {
+  const details: Array<{ key: string; label: string; value: string; detail?: string }> = []
+  if (cryptoTokenLabel.value) {
+    details.push({
+      key: 'token',
+      label: t('payment.cryptoToken'),
+      value: cryptoTokenLabel.value,
+      detail: cryptoTokenDetail.value,
+    })
+  }
+  if (cryptoChain.value) {
+    details.push({
+      key: 'chain',
+      label: t('payment.cryptoChain'),
+      value: formatCryptoChain(cryptoChain.value),
+    })
+  }
+  if (cryptoChainAmount.value) {
+    details.push({
+      key: 'amount',
+      label: t('payment.cryptoAmount'),
+      value: cryptoChainAmount.value,
+    })
+  }
+  if (cryptoWalletAddress.value) {
+    details.push({
+      key: 'wallet_address',
+      label: t('payment.walletAddress'),
+      value: cryptoWalletAddress.value,
+    })
+  }
+  return details
+})
+const hasCryptoPaymentDetails = computed(() => cryptoPaymentDetails.value.length > 0)
 const qrFallbackContent = computed(() => {
   if (interactionMode.value !== 'qr') return ''
   if (qrCodeContent.value) return ''
@@ -1041,23 +1165,30 @@ const loadOrder = async (options?: { silent?: boolean }) => {
       }
     }
   } finally {
-    if (!silent) {
-      loading.value = false
-    }
-    if (!silent && order.value) {
-      if (orderCanceled.value) {
-        error.value = t('payment.orderCanceled')
-        cachedPayment.value = null
-        return
+    try {
+      if (order.value) {
+        if (orderCanceled.value) {
+          if (!silent) {
+            error.value = t('payment.orderCanceled')
+          }
+          cachedPayment.value = null
+          return
+        }
+        if (orderExpired.value) {
+          if (!silent) {
+            error.value = t('payment.orderExpired')
+          }
+          cachedPayment.value = null
+          return
+        }
+        if (!paymentResult.value && !latestLoaded.value && order.value.status === 'pending_payment') {
+          latestLoaded.value = true
+          await loadLatestPayment()
+        }
       }
-      if (orderExpired.value) {
-        error.value = t('payment.orderExpired')
-        cachedPayment.value = null
-        return
-      }
-      if (!latestLoaded.value && order.value.status === 'pending_payment') {
-        latestLoaded.value = true
-        await loadLatestPayment()
+    } finally {
+      if (!silent) {
+        loading.value = false
       }
     }
   }
@@ -1080,9 +1211,48 @@ const stopCountdown = () => {
   countdownTimer.value = null
 }
 
+const shouldCaptureCurrentPayment = () => {
+  if (!currentPaymentID()) return false
+  if (!order.value || order.value.status !== 'pending_payment') return false
+  return paymentProviderType.value === 'official' && paymentChannelType.value === 'wechat'
+}
+
+const captureCurrentPayment = async (options?: { silent?: boolean }) => {
+  if (capturing.value || !shouldCaptureCurrentPayment()) return
+  capturing.value = true
+  if (!options?.silent) {
+    error.value = ''
+  }
+  try {
+    const paymentID = currentPaymentID()
+    if (!paymentID) return
+    if (isGuest.value) {
+      if (!hasGuestAuth.value) {
+        if (!options?.silent) {
+          guestAuthError.value = t('payment.guestAuthRequired')
+        }
+        return
+      }
+      await guestOrderAPI.capturePayment(paymentID, {
+        email: guestAuth.value.email,
+        order_password: guestAuth.value.order_password,
+      })
+    } else {
+      await paymentAPI.capture(paymentID)
+    }
+  } catch (err: any) {
+    if (!options?.silent) {
+      error.value = err?.message || t('payment.captureFailed')
+    }
+  } finally {
+    capturing.value = false
+  }
+}
+
 const startPolling = () => {
   if (pollTimer.value) return
   pollTimer.value = window.setInterval(async () => {
+    await captureCurrentPayment({ silent: true })
     await debouncedLoadOrder({ silent: true })
   }, 5000)
 }
@@ -1104,6 +1274,23 @@ const handleCopyPayLink = async () => {
     copiedTimer.value = window.setTimeout(() => {
       copied.value = false
       copiedTimer.value = null
+    }, 1500)
+  } catch (err: any) {
+    error.value = err?.message || t('payment.copyFailed')
+  }
+}
+
+const handleCopyWalletAddress = async () => {
+  if (!cryptoWalletAddress.value) return
+  try {
+    await copyText(cryptoWalletAddress.value)
+    walletAddressCopied.value = true
+    if (walletAddressCopiedTimer.value) {
+      window.clearTimeout(walletAddressCopiedTimer.value)
+    }
+    walletAddressCopiedTimer.value = window.setTimeout(() => {
+      walletAddressCopied.value = false
+      walletAddressCopiedTimer.value = null
     }, 1500)
   } catch (err: any) {
     error.value = err?.message || t('payment.copyFailed')
@@ -1147,10 +1334,10 @@ const loadLatestPayment = async () => {
       paymentResult.value = data
       selectedChannelId.value = data.channel_id || null
       startPolling()
+      void captureCurrentPayment({ silent: true })
       startCountdown()
       // 对 redirect 模式自动打开支付链接
-      const mode = String(data.interaction_mode || '').toLowerCase()
-      if (mode === 'redirect' && data.pay_url) {
+      if (shouldAutoOpenPaymentLink(data)) {
         openPayLinkInCompatibleWindow()
       }
     }
@@ -1203,10 +1390,9 @@ const redirectToWalletRecharge = async () => {
 
 const capturePaypalIfNeeded = async () => {
   if (capturing.value) return
-  if (!paymentResult.value?.payment_id) return
-  const providerType = String(paymentResult.value?.provider_type || '').toLowerCase()
-  const channelType = String(paymentResult.value?.channel_type || '').toLowerCase()
-  if (!(providerType === 'official' && channelType === 'paypal')) return
+  const paymentID = currentPaymentID()
+  if (!paymentID) return
+  if (!(paymentProviderType.value === 'official' && paymentChannelType.value === 'paypal')) return
   const returnFlag = readRouteQueryValue('pp_return').toLowerCase()
   const token = readRouteQueryValue('token')
   const payerId = readRouteQueryValue('payer_id') || readRouteQueryValue('PayerID')
@@ -1221,12 +1407,12 @@ const capturePaypalIfNeeded = async () => {
         guestAuthError.value = t('payment.guestAuthRequired')
         return
       }
-      await guestOrderAPI.capturePayment(Number(paymentResult.value.payment_id), {
+      await guestOrderAPI.capturePayment(paymentID, {
         email: guestAuth.value.email,
         order_password: guestAuth.value.order_password,
       })
     } else {
-      await paymentAPI.capture(Number(paymentResult.value.payment_id))
+      await paymentAPI.capture(paymentID)
     }
     await debouncedLoadOrder({ silent: true })
     await router.replace({
@@ -1242,10 +1428,9 @@ const capturePaypalIfNeeded = async () => {
 
 const captureStripeIfNeeded = async () => {
   if (capturing.value) return
-  if (!paymentResult.value?.payment_id) return
-  const providerType = String(paymentResult.value?.provider_type || '').toLowerCase()
-  const channelType = String(paymentResult.value?.channel_type || '').toLowerCase()
-  if (!(providerType === 'official' && channelType === 'stripe')) return
+  const paymentID = currentPaymentID()
+  if (!paymentID) return
+  if (!(paymentProviderType.value === 'official' && paymentChannelType.value === 'stripe')) return
   const returnFlag = readRouteQueryValue('stripe_return').toLowerCase()
   const sessionID = readRouteQueryValue('session_id')
   if (returnFlag !== '1' && sessionID === '') return
@@ -1259,12 +1444,12 @@ const captureStripeIfNeeded = async () => {
         guestAuthError.value = t('payment.guestAuthRequired')
         return
       }
-      await guestOrderAPI.capturePayment(Number(paymentResult.value.payment_id), {
+      await guestOrderAPI.capturePayment(paymentID, {
         email: guestAuth.value.email,
         order_password: guestAuth.value.order_password,
       })
     } else {
-      await paymentAPI.capture(Number(paymentResult.value.payment_id))
+      await paymentAPI.capture(paymentID)
     }
     await debouncedLoadOrder({ silent: true })
     await router.replace({
@@ -1322,6 +1507,7 @@ const performPayment = async () => {
     paymentResult.value = cachedPayment.value
     openedPayWindow.value = false
     startPolling()
+    void captureCurrentPayment({ silent: true })
     startCountdown()
     window.scrollTo({ top: 0, behavior: 'smooth' })
     return
@@ -1345,6 +1531,7 @@ const performPayment = async () => {
       }
       openedPayWindow.value = false
       startPolling()
+      void captureCurrentPayment({ silent: true })
     } else {
       const payload: any = {
         order_no: orderNoResolved.value,
@@ -1375,11 +1562,11 @@ const performPayment = async () => {
       }
       openedPayWindow.value = false
       startPolling()
+      void captureCurrentPayment({ silent: true })
       await loadWallet()
     }
     window.scrollTo({ top: 0, behavior: 'smooth' })
-    const mode = String(paymentResult.value?.interaction_mode || '').toLowerCase()
-    if (mode === 'redirect' && payLink.value) {
+    if (shouldAutoOpenPaymentLink(paymentResult.value)) {
       openPayLinkInCompatibleWindow()
     }
   } catch (err: any) {
@@ -1445,20 +1632,53 @@ const redirectToOrderDetail = () => {
   }, 600)
 }
 
-const resetPayment = () => {
+const resetPayment = (reason: PaymentResetReason = 'generic') => {
+  const resetPolicy = getPaymentResetPolicy(reason)
+  if (resetPolicy.stopActivePaymentWatch) {
+    stopPolling()
+    stopCountdown()
+    debouncedLoadOrder.cancel()
+  }
   paymentResult.value = null
   error.value = ''
   openedPayWindow.value = false
   resetRedirectState()
-  latestLoaded.value = false
+  latestLoaded.value = !resetPolicy.resumeLatestPayment
+  if (resetPolicy.clearSelectedChannel) {
+    selectedChannelId.value = null
+  }
+}
+
+const resetPaymentRouteState = () => {
+  stopPolling()
+  stopCountdown()
+  resetPayment('route_change')
+  cachedPayment.value = null
+  selectedChannelId.value = null
+  order.value = null
+  orderPaymentChannels.value = []
+  orderPaymentChannelsLoaded.value = false
 }
 
 const restoreCachedPayment = () => {
   if (!cachedPayment.value) return
+  const restorePolicy = getCachedPaymentRestorePolicy()
   paymentResult.value = cachedPayment.value
   selectedChannelId.value = cachedPayment.value.channel_id || null
   openedPayWindow.value = false
+  if (restorePolicy.startActivePaymentWatch) {
+    startPolling()
+    void captureCurrentPayment({ silent: true })
+    startCountdown()
+  }
+  if (restorePolicy.autoOpenPayLink && shouldAutoOpenPaymentLink(paymentResult.value)) {
+    openPayLinkInCompatibleWindow()
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const handleChangePaymentMethod = () => {
+  resetPayment('change_payment_method')
 }
 
 const formatDate = (raw?: string) => {
@@ -1586,6 +1806,17 @@ watch(
 )
 
 watch(
+  () => [isGuest.value, orderNoQuery.value],
+  async ([, orderNo], [, previousOrderNo]) => {
+    if (!previousOrderNo || orderNo === previousOrderNo) return
+    resetPaymentRouteState()
+    if (!orderNo) return
+    await loadOrder()
+    void loadWallet()
+  }
+)
+
+watch(
   () => [isGuest.value, orderNoResolved.value, requiresOnlineChannel.value, expectedOnlinePayCents.value, order.value?.status],
   () => {
     void debouncedLoadOrderPaymentChannels()
@@ -1594,7 +1825,7 @@ watch(
 )
 
 watch(
-  () => [paymentResult.value?.payment_id, route.fullPath, order.value?.status],
+  () => [currentPaymentID(), paymentProviderType.value, paymentChannelType.value, route.fullPath, order.value?.status],
   () => {
     void capturePaypalIfNeeded()
     void captureStripeIfNeeded()
@@ -1640,6 +1871,10 @@ onUnmounted(() => {
     window.clearTimeout(copiedTimer.value)
     copiedTimer.value = null
   }
+  if (walletAddressCopiedTimer.value) {
+    window.clearTimeout(walletAddressCopiedTimer.value)
+    walletAddressCopiedTimer.value = null
+  }
   debouncedLoadOrder.cancel()
   debouncedLoadOrderPaymentChannels.cancel()
 })
@@ -1658,6 +1893,7 @@ const handleGuestAuthSubmit = async () => {
 }
 
 const handleRefresh = async () => {
+  await captureCurrentPayment()
   await Promise.all([
     debouncedLoadOrder(),
     loadWallet(),

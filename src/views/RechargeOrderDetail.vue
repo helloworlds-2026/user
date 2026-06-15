@@ -107,6 +107,29 @@
               </div>
             </div>
             <div class="rounded-xl border theme-surface-soft p-4">
+              <div v-if="hasCryptoPaymentDetails" class="space-y-2 rounded-xl border theme-border bg-white/5 p-3 text-sm">
+                <div
+                  v-for="item in cryptoPaymentDetails"
+                  :key="item.key"
+                  class="flex flex-col gap-1 border-b theme-border pb-2 last:border-b-0 last:pb-0"
+                >
+                  <span class="text-xs theme-text-muted">{{ item.label }}</span>
+                  <span class="min-w-0 font-semibold theme-text-primary break-all">
+                    {{ item.value }}
+                    <span v-if="item.detail" class="ml-1 font-normal theme-text-muted">({{ item.detail }})</span>
+                  </span>
+                </div>
+                <div v-if="cryptoWalletAddress" class="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    class="inline-flex items-center rounded-lg border theme-btn-secondary px-3 py-1.5 text-xs font-semibold"
+                    @click="handleCopyWalletAddress"
+                  >
+                    {{ t('payment.copyWalletAddress') }}
+                  </button>
+                  <span v-if="walletAddressCopied" class="text-xs text-emerald-500">{{ t('payment.copied') }}</span>
+                </div>
+              </div>
               <div class="mt-4 flex flex-wrap items-center gap-3">
                 <button
                   v-if="payLink"
@@ -150,6 +173,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { walletAPI } from '../api/wallet'
 import { useTelegramMiniAppStore } from '../stores/telegramMiniApp'
+import { copyText } from '../utils/clipboard'
 import { basisPointsToPercent, rateToBasisPoints } from '../utils/money'
 import QRCode from 'qrcode'
 
@@ -162,6 +186,8 @@ const checkingPayment = ref(false)
 const recharge = ref<any>(null)
 const payment = ref<any>(null)
 const pollTimer = ref<number | null>(null)
+const walletAddressCopied = ref(false)
+const walletAddressCopiedTimer = ref<number | null>(null)
 const qrImageUrl = ref('')
 const qrRenderVersion = ref(0)
 
@@ -186,6 +212,50 @@ const qrFallbackContent = computed(() => {
 const qrDisplayContent = computed(() => qrCodeContent.value || qrFallbackContent.value)
 const qrUsingPayLinkFallback = computed(() => Boolean(!qrCodeContent.value && qrFallbackContent.value))
 const showQRCode = computed(() => interactionMode.value !== 'redirect' && Boolean(qrImageUrl.value))
+const cryptoWalletAddress = computed(() => String(payment.value?.wallet_address || '').trim())
+const cryptoChainAmount = computed(() => String(payment.value?.chain_amount || '').trim())
+const cryptoChain = computed(() => String(payment.value?.chain || '').trim())
+const cryptoTokenID = computed(() => String(payment.value?.token_id || '').trim())
+const cryptoTokenLabel = computed(() => {
+  const tokenID = cryptoTokenID.value
+  if (!tokenID) return ''
+  const parts = tokenID.split('-').filter(Boolean)
+  return String(parts[parts.length - 1] || tokenID).toUpperCase()
+})
+const cryptoTokenDetail = computed(() => {
+  if (!cryptoTokenID.value) return ''
+  return cryptoTokenID.value.toUpperCase() === cryptoTokenLabel.value ? '' : cryptoTokenID.value
+})
+const formatCryptoChain = (value: string) => {
+  const normalized = value.trim().toLowerCase()
+  const labels: Record<string, string> = {
+    tron: 'TRON',
+    trc20: 'TRON',
+    base: 'Base',
+    ethereum: 'Ethereum',
+    eth: 'Ethereum',
+    bsc: 'BNB Smart Chain',
+    polygon: 'Polygon',
+  }
+  return labels[normalized] || value
+}
+const cryptoPaymentDetails = computed(() => {
+  const details: Array<{ key: string; label: string; value: string; detail?: string }> = []
+  if (cryptoTokenLabel.value) {
+    details.push({ key: 'token', label: t('payment.cryptoToken'), value: cryptoTokenLabel.value, detail: cryptoTokenDetail.value })
+  }
+  if (cryptoChain.value) {
+    details.push({ key: 'chain', label: t('payment.cryptoChain'), value: formatCryptoChain(cryptoChain.value) })
+  }
+  if (cryptoChainAmount.value) {
+    details.push({ key: 'amount', label: t('payment.cryptoAmount'), value: cryptoChainAmount.value })
+  }
+  if (cryptoWalletAddress.value) {
+    details.push({ key: 'wallet_address', label: t('payment.walletAddress'), value: cryptoWalletAddress.value })
+  }
+  return details
+})
+const hasCryptoPaymentDetails = computed(() => cryptoPaymentDetails.value.length > 0)
 
 const feeRateDisplay = computed(() => {
   const rate = rateToBasisPoints(recharge.value?.fee_rate ?? payment.value?.fee_rate)
@@ -315,6 +385,23 @@ const handleOpenPayLink = () => {
   }
 }
 
+const handleCopyWalletAddress = async () => {
+  if (!cryptoWalletAddress.value) return
+  try {
+    await copyText(cryptoWalletAddress.value)
+    walletAddressCopied.value = true
+    if (walletAddressCopiedTimer.value) {
+      window.clearTimeout(walletAddressCopiedTimer.value)
+    }
+    walletAddressCopiedTimer.value = window.setTimeout(() => {
+      walletAddressCopied.value = false
+      walletAddressCopiedTimer.value = null
+    }, 1500)
+  } catch {
+    window.alert(t('payment.copyFailed'))
+  }
+}
+
 const renderQRCodeImage = async () => {
   const qr = qrDisplayContent.value
   const currentVersion = qrRenderVersion.value + 1
@@ -361,5 +448,9 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopPolling()
+  if (walletAddressCopiedTimer.value) {
+    window.clearTimeout(walletAddressCopiedTimer.value)
+    walletAddressCopiedTimer.value = null
+  }
 })
 </script>
