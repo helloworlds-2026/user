@@ -525,19 +525,49 @@ const refundRecords = computed(() => {
   return records
 })
 
-const loadOrder = async () => {
-  loading.value = true
+const loadOrder = async ({ silent = false }: { silent?: boolean } = {}) => {
+  if (!silent) loading.value = true
   try {
     const response = await userOrderAPI.detail(String(route.params.order_no || '').trim())
     order.value = response.data.data
   } catch (error) {
-    order.value = null
+    // 轮询刷新失败时保留当前订单，避免页面闪烁；仅首屏加载失败才置空。
+    if (!silent) order.value = null
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
+    syncStatusPolling()
   }
 }
 
 const debouncedLoadOrder = debounceAsync(loadOrder, 300)
+
+// 订单处于「处理中」(fulfilling) 时每 5 秒静默刷新一次，直到状态变化（如「已交付」）或离开页面。
+const STATUS_POLL_INTERVAL_MS = 5000
+const statusPollTimer = ref<number | null>(null)
+
+const shouldPollStatus = () => String(order.value?.status || '').trim() === 'fulfilling'
+
+const stopStatusPolling = () => {
+  if (statusPollTimer.value !== null) {
+    window.clearInterval(statusPollTimer.value)
+    statusPollTimer.value = null
+  }
+}
+
+const startStatusPolling = () => {
+  if (statusPollTimer.value !== null) return
+  statusPollTimer.value = window.setInterval(() => {
+    loadOrder({ silent: true })
+  }, STATUS_POLL_INTERVAL_MS)
+}
+
+const syncStatusPolling = () => {
+  if (shouldPollStatus()) {
+    startStatusPolling()
+  } else {
+    stopStatusPolling()
+  }
+}
 
 const cancelOrder = async () => {
   if (!order.value) return
@@ -800,5 +830,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   debouncedLoadOrder.cancel()
+  stopStatusPolling()
 })
 </script>
