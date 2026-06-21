@@ -331,6 +331,18 @@ router.beforeEach(async (to, _from, next) => {
         }
     }
 
+    // 访问控制：后台可关闭「推广返利」「API 对接」入口及页面。
+    const disableAffiliate = appStore.config?.disable_affiliate === true
+    const disableApi = appStore.config?.disable_api === true
+    if (disableAffiliate && (to.path === '/me/affiliate' || to.path.startsWith('/me/affiliate/'))) {
+        next('/me')
+        return
+    }
+    if (disableApi && (to.path === '/me/api' || to.path.startsWith('/me/api/'))) {
+        next('/me')
+        return
+    }
+
     if (to.meta.userGuest) {
         if (userAuthStore.isAuthenticated) {
             next('/me/orders')

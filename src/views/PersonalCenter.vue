@@ -288,6 +288,7 @@ import { getImageUrl } from '../utils/image'
 import { orderStatusClass, orderStatusLabel } from '../utils/status'
 import { pageAlertClass, type PageAlert } from '../utils/alerts'
 import { useUserProfileStore } from '../stores/userProfile'
+import { useAppStore } from '../stores/app'
 import ProfilePanel from './personal/ProfilePanel.vue'
 import SecurityPanel from './personal/SecurityPanel.vue'
 import OrdersPanel from './personal/OrdersPanel.vue'
@@ -305,8 +306,9 @@ const props = withDefaults(defineProps<{ section?: PersonalSection }>(), {
 const router = useRouter()
 const { t, locale } = useI18n()
 const userProfileStore = useUserProfileStore()
+const appStore = useAppStore()
 
-const sectionItems: Array<{ key: PersonalSection; label: string; icon: Component }> = [
+const allSectionItems: Array<{ key: PersonalSection; label: string; icon: Component }> = [
   { key: 'overview', label: 'personalCenter.tabs.overview', icon: HomeIcon },
   { key: 'orders', label: 'personalCenter.tabs.orders', icon: ShoppingBagIcon },
   { key: 'wallet', label: 'personalCenter.tabs.wallet', icon: WalletIcon },
@@ -316,6 +318,13 @@ const sectionItems: Array<{ key: PersonalSection; label: string; icon: Component
   { key: 'api', label: 'personalCenter.tabs.api', icon: KeyIcon },
   { key: 'profile', label: 'personalCenter.tabs.profile', icon: UserCircleIcon },
 ]
+
+// 访问控制：后台可关闭「推广返利」「API 对接」入口。
+const sectionItems = computed(() => allSectionItems.filter((item) => {
+  if (item.key === 'affiliate' && appStore.config?.disable_affiliate === true) return false
+  if (item.key === 'api' && appStore.config?.disable_api === true) return false
+  return true
+}))
 
 const sectionRouteMap: Record<PersonalSection, string> = {
   overview: '/me',
