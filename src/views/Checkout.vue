@@ -231,7 +231,18 @@
             :variant="pageAlertVariant(checkoutAlert.level)"
             :class="['mb-4', pageAlertToneClass(checkoutAlert.level)]"
           >
-            <AlertDescription>{{ checkoutAlert.message }}</AlertDescription>
+            <AlertDescription class="flex flex-wrap items-center gap-2">
+              <span>{{ checkoutAlert.message }}</span>
+              <Button
+                v-if="showWalletRechargeAction && checkoutAlert.message === walletInsufficientHintText"
+                as-child
+                variant="outline"
+                size="sm"
+                class="shrink-0"
+              >
+                <router-link to="/me/wallet">{{ t('navbar.balanceRecharge') }}</router-link>
+              </Button>
+            </AlertDescription>
           </Alert>
 
           <!-- Payment Channel Selection -->
@@ -258,8 +269,11 @@
               <div v-if="useBalance" class="mt-2 space-y-1 text-xs text-muted-foreground">
                 <div>{{ t('payment.walletDeductLabel') }}：{{ expectedWalletPaidDisplay }}</div>
                 <div v-if="!walletOnlyPayment">{{ t('payment.onlinePayLabel') }}：{{ expectedOnlinePayDisplay }}</div>
-                <div v-if="walletOnlyPayment && expectedOnlinePayCents > 0" class="text-warning">
-                  {{ t('payment.walletInsufficientHint') }}
+                <div v-if="walletOnlyPayment && expectedOnlinePayCents > 0" class="flex flex-wrap items-center gap-2 text-warning">
+                  <span>{{ t('payment.walletInsufficientHint') }}</span>
+                  <Button as-child variant="outline" size="sm" class="shrink-0">
+                    <router-link to="/me/wallet">{{ t('navbar.balanceRecharge') }}</router-link>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -340,6 +354,7 @@ const {
   previewLoading, couponRefreshing, previewStatusText, hasPositiveAmount, formatDiscountPrice, checkoutAlert,
   showBalanceOption, walletLoading, walletBalance, useBalance, walletOnlyPayment,
   expectedWalletPaidDisplay, expectedOnlinePayDisplay, expectedOnlinePayCents,
+  showWalletRechargeAction, walletInsufficientHintText,
   requiresOnlineChannel, paymentChannels, selectedChannelId, isChannelDisabledForAmount, channelAmountLimitHint,
   handleSelectChannel, formatChannelFeeRate, formatChannelFixedFee,
   submitting, canSubmit, handleSubmit,

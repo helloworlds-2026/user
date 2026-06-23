@@ -138,6 +138,8 @@ export function useCheckout() {
   })
   const expectedWalletPaidDisplay = computed(() => formatPrice(centsToAmount(expectedWalletPaidCents.value), previewCurrency.value))
   const expectedOnlinePayDisplay = computed(() => formatPrice(centsToAmount(expectedOnlinePayCents.value), previewCurrency.value))
+  const showWalletRechargeAction = computed(() => walletOnlyPayment.value && expectedOnlinePayCents.value > 0)
+  const walletInsufficientHintText = computed(() => t('payment.walletInsufficientHint'))
   const requiresOnlineChannel = computed(() => {
     if (!userAuthStore.isAuthenticated) return true
     if (!useBalance.value) return true
@@ -1158,6 +1160,8 @@ export function useCheckout() {
     expectedWalletPaidDisplay,
     expectedOnlinePayDisplay,
     expectedOnlinePayCents,
+    showWalletRechargeAction,
+    walletInsufficientHintText,
     // payment channels
     requiresOnlineChannel,
     paymentChannels,

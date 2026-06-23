@@ -134,7 +134,18 @@
         </div>
 
         <div v-if="previewLoading || couponRefreshing" class="mt-3 text-xs text-muted-foreground">{{ previewStatusText }}</div>
-        <div v-if="checkoutAlert" class="mt-3.5 rounded-sm px-3 py-2.5 text-[13px] font-semibold" :class="checkoutAlert.level === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'">{{ checkoutAlert.message }}</div>
+        <div v-if="checkoutAlert" class="mt-3.5 rounded-sm px-3 py-2.5 text-[13px] font-semibold flex flex-wrap items-center gap-2" :class="checkoutAlert.level === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'">
+          <span>{{ checkoutAlert.message }}</span>
+          <Button
+            v-if="showWalletRechargeAction && checkoutAlert.message === walletInsufficientHintText"
+            as-child
+            variant="outline"
+            size="sm"
+            class="shrink-0 rounded-full"
+          >
+            <router-link to="/me/wallet">{{ t('navbar.balanceRecharge') }}</router-link>
+          </Button>
+        </div>
 
         <!-- 支付方式 -->
         <div class="my-[18px] border-t pt-4">
@@ -155,7 +166,12 @@
             <div v-if="useBalance" class="mt-2.5 grid gap-0.5 text-xs text-muted-foreground">
               <div>{{ t('payment.walletDeductLabel') }}：{{ expectedWalletPaidDisplay }}</div>
               <div v-if="!walletOnlyPayment">{{ t('payment.onlinePayLabel') }}：{{ expectedOnlinePayDisplay }}</div>
-              <div v-if="walletOnlyPayment && expectedOnlinePayCents > 0" class="text-warning">{{ t('payment.walletInsufficientHint') }}</div>
+              <div v-if="walletOnlyPayment && expectedOnlinePayCents > 0" class="flex flex-wrap items-center gap-2 text-warning">
+                <span>{{ t('payment.walletInsufficientHint') }}</span>
+                <Button as-child variant="outline" size="sm" class="shrink-0 rounded-full">
+                  <router-link to="/me/wallet">{{ t('navbar.balanceRecharge') }}</router-link>
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -225,6 +241,7 @@ const {
   previewLoading, couponRefreshing, previewStatusText, hasPositiveAmount, formatDiscountPrice, checkoutAlert,
   showBalanceOption, walletLoading, walletBalance, useBalance, walletOnlyPayment,
   expectedWalletPaidDisplay, expectedOnlinePayDisplay, expectedOnlinePayCents,
+  showWalletRechargeAction, walletInsufficientHintText,
   requiresOnlineChannel, paymentChannels, selectedChannelId, isChannelDisabledForAmount, channelAmountLimitHint,
   handleSelectChannel, formatChannelFeeRate, formatChannelFixedFee,
   submitting, canSubmit, handleSubmit,

@@ -324,11 +324,48 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
     const userAuthStore = useUserAuthStore()
     const appStore = useAppStore()
+    const telegramMiniAppStore = useTelegramMiniAppStore()
     void captureAffiliateFromRoute(to)
 
     // Ensure config is loaded before checking template mode
     if (!appStore.config) {
         await appStore.loadConfig()
+    }
+
+    const isAuthRoute = to.path.startsWith('/auth/')
+    const isGuestOrdersRoute = to.path === '/guest/orders' || to.path.startsWith('/guest/orders/')
+    const userURLTelegramAppOnly = appStore.config?.user_url_telegram_app === true
+    const requireLogin = appStore.config?.require_login === true
+    const enableGuestOrders = appStore.config?.enable_guest_orders === true
+
+    // Telegram Mini App only mode: any browser visit should resolve to 404.
+    if (userURLTelegramAppOnly && !telegramMiniAppStore.isMiniApp) {
+        if (to.name === 'not-found') {
+            next()
+        } else {
+            next({ name: 'not-found', replace: true })
+        }
+        return
+    }
+
+    // Guest order lookup availability depends on access config.
+    if (isGuestOrdersRoute) {
+        if (requireLogin || !enableGuestOrders) {
+            next('/')
+            return
+        }
+    }
+
+    // 访问控制：后台可关闭「推广返利」「API 对接」入口及页面。
+    const disableAffiliate = appStore.config?.disable_affiliate === true
+    const disableApi = appStore.config?.disable_api === true
+    if (disableAffiliate && (to.path === '/me/affiliate' || to.path.startsWith('/me/affiliate/'))) {
+        next('/me')
+        return
+    }
+    if (disableApi && (to.path === '/me/api' || to.path.startsWith('/me/api/'))) {
+        next('/me')
+        return
     }
 
     if (to.meta.requiresUserAuth) {
@@ -347,6 +384,10 @@ router.beforeEach(async (to, _from, next) => {
         } else {
             next()
         }
+    }
+    else if ((requireLogin || to.meta.requiresUserAuth) && !isAuthRoute && !userAuthStore.isAuthenticated) {
+        const redirect = encodeURIComponent(to.fullPath)
+        next(`/auth/login?redirect=${redirect}`)
     }
     else {
         next()
