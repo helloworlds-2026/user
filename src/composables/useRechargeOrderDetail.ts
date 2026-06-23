@@ -34,6 +34,7 @@ export function useRechargeOrderDetail() {
   })
 
   const payLink = computed(() => String(payment.value?.pay_url || '').trim())
+  const paymentExpiresAt = computed(() => String(payment.value?.expires_at || recharge.value?.expires_at || '').trim())
   const interactionMode = computed(() => String(payment.value?.interaction_mode || '').toLowerCase())
   const isTelegramMiniApp = computed(() => telegramMiniAppStore.isMiniApp && telegramMiniAppStore.isReady)
   const showTelegramPayHint = computed(() => isTelegramMiniApp.value && Boolean(payLink.value))
@@ -306,6 +307,7 @@ export function useRechargeOrderDetail() {
     qrImageUrl,
     isPending,
     payLink,
+    paymentExpiresAt,
     showTelegramPayHint,
     qrUsingPayLinkFallback,
     showQRCode,

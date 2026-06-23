@@ -36,7 +36,7 @@
       </div>
 
       <!-- Right Side Actions -->
-      <div class="flex items-center shrink-0 space-x-2 lg:space-x-4">
+      <div class="flex items-center shrink-0 gap-1 lg:gap-1.5">
         <!-- Cart (desktop only, mobile has bottom nav) -->
         <Button as-child variant="ghost" size="sm" class="hidden lg:flex relative gap-2 text-muted-foreground">
           <router-link to="/cart">
@@ -50,7 +50,7 @@
           </router-link>
         </Button>
 
-        <Button v-if="!userAuthStore.isAuthenticated" as-child variant="ghost" size="sm"
+        <Button v-if="canShowGuestOrders && !userAuthStore.isAuthenticated" as-child variant="ghost" size="sm"
           class="hidden lg:inline-flex gap-1.5 text-muted-foreground whitespace-nowrap">
           <router-link to="/guest/orders">
             <ClipboardList class="w-4 h-4 shrink-0 opacity-70" />
@@ -69,6 +69,13 @@
           <router-link to="/me">
             <User class="w-4 h-4 shrink-0 opacity-70" />
             {{ t('navbar.personalCenter') }}
+          </router-link>
+        </Button>
+        <Button v-if="userAuthStore.isAuthenticated" as-child variant="ghost" size="sm"
+          class="hidden lg:inline-flex gap-1.5 text-muted-foreground whitespace-nowrap">
+          <router-link to="/me/wallet">
+            <Wallet class="w-4 h-4 shrink-0 opacity-70" />
+            {{ t('navbar.balanceRecharge') }}
           </router-link>
         </Button>
         <Button v-if="userAuthStore.isAuthenticated" variant="ghost" size="sm"
@@ -165,12 +172,19 @@
             </Button>
           </template>
 
-          <!-- Guest orders (not in bottom nav) -->
-          <Button v-if="!userAuthStore.isAuthenticated" as-child variant="ghost"
+          <Button v-if="canShowGuestOrders && !userAuthStore.isAuthenticated" as-child variant="ghost"
             class="w-full justify-start gap-3 h-auto py-3 rounded-xl text-sm text-muted-foreground [&_svg]:size-5">
             <router-link to="/guest/orders" @click="showMobileMenu = false" active-class="!text-primary !bg-primary/10">
               <ClipboardList class="shrink-0 opacity-60" />
               {{ t('navbar.guestOrders') }}
+            </router-link>
+          </Button>
+
+          <Button v-if="userAuthStore.isAuthenticated" as-child variant="ghost"
+            class="w-full justify-start gap-3 h-auto py-3 rounded-xl text-sm text-muted-foreground [&_svg]:size-5">
+            <router-link to="/me/wallet" @click="showMobileMenu = false" active-class="!text-primary !bg-primary/10">
+              <Wallet class="shrink-0 opacity-60" />
+              {{ t('navbar.balanceRecharge') }}
             </router-link>
           </Button>
 
@@ -212,7 +226,7 @@ import { useUserAuthStore } from '../stores/userAuth'
 import { useTheme } from '../utils/theme'
 import { getImageUrl } from '../utils/image'
 import {
-  Sun, Moon, ShoppingCart, ClipboardList, LogIn, User, LogOut, Languages,
+  Sun, Moon, ShoppingCart, ClipboardList, LogIn, User, LogOut, Languages, Wallet,
   EllipsisVertical, X, Home, LayoutGrid, Newspaper, Bell, Info,
   Link2, FileText, Globe, Star, Heart, MessageCircle, Gift, Zap, Shield,
   BookOpen, Code, Phone, MapPin, Music, Camera,
@@ -232,6 +246,12 @@ const scrolled = ref(false)
 const cartBounce = ref(false)
 
 const isListMode = computed(() => appStore.config?.template_mode === 'list')
+
+const canShowGuestOrders = computed(() => {
+  const requireLogin = appStore.config?.require_login === true
+  const enableGuestOrders = appStore.config?.enable_guest_orders === true
+  return !requireLogin && enableGuestOrders
+})
 
 // 内置导航项定义
 const builtinNavDefs: Record<string, { path: string; label: string; icon: Component }> = {

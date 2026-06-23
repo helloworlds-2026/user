@@ -78,6 +78,7 @@
       <div
         class="border-t pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
         <div class="space-y-1 text-center md:text-left">
+          <p>本站在独角-next原版基础上进行简单二次开发</p>
           <p>&copy; {{ currentYear }} {{ brandSiteName }}. {{ t('footer.rights') }}</p>
           <p class="flex items-center justify-center gap-1 md:justify-start">
             <a
@@ -125,6 +126,9 @@ import { getLocalizedText } from '../utils/resellerSiteConfig'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+
+/** 页脚版权年份（构建时确定，满足 vue-tsc 对模板变量的检查） */
+const currentYear = new Date().getFullYear()
 
 const config = computed(() => appStore.config)
 
@@ -181,6 +185,4 @@ const footerLinks = computed(() => {
     }))
     .filter((item) => item.name)
 })
-
-const currentYear = new Date().getFullYear()
 </script>
