@@ -1,5 +1,13 @@
 <template>
-  <div id="app" class="min-h-screen bg-background text-foreground flex flex-col">
+  <!-- 首屏配置加载遮罩：避免 vault/classic 模板在 config 未就绪时闪烁 -->
+  <div v-if="!appStore.config" class="fixed inset-0 z-[9999] flex items-center justify-center bg-background">
+    <svg class="h-10 w-10 animate-spin text-muted-foreground" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+    </svg>
+  </div>
+
+  <div v-else id="app" class="min-h-screen bg-background text-foreground flex flex-col">
     <!-- vault 模板：自带顶栏/页脚的外壳包裹页面（控制台仍走下方分支） -->
     <VaultLayout v-if="isVault && !isResellerConsole">
       <ErrorBoundary>
