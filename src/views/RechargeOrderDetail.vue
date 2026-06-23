@@ -28,7 +28,10 @@
             <div>
               <div class="text-xs uppercase tracking-wider theme-text-muted">{{ t('personalCenter.wallet.rechargeNoLabel') }}</div>
               <div class="text-sm font-semibold theme-text-primary mt-1">{{ recharge.recharge_no }}</div>
-              <div class="text-xs theme-text-muted mt-2">{{ t('rechargeOrder.createdAtLabel') }}：{{ formatDate(recharge.created_at) }}</div>
+              <div class="text-xs theme-text-muted mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span>{{ t('rechargeOrder.createdAtLabel') }}：{{ formatDate(recharge.created_at) }}</span>
+                <span v-if="paymentExpiresAt">{{ t('payment.expiresAt') }}：{{ formatDate(paymentExpiresAt) }}</span>
+              </div>
             </div>
             <div class="flex flex-col items-start md:items-end gap-2">
               <div class="text-xs uppercase tracking-wider theme-text-muted">{{ t('rechargeOrder.rechargeAmount') }}</div>
@@ -65,49 +68,35 @@
           </div>
         </div>
 
-        <!-- 时间信息 -->
-        <div class="theme-panel rounded-2xl p-6">
-          <h2 class="text-lg font-bold mb-4">{{ t('rechargeOrder.timeTitle') }}</h2>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div class="theme-surface-soft border rounded-xl p-4">
-              <div class="text-xs theme-text-muted">{{ t('rechargeOrder.createdAtLabel') }}</div>
-              <div class="theme-text-primary font-mono mt-1">{{ formatDate(recharge.created_at) }}</div>
-            </div>
-            <div v-if="recharge.paid_at" class="theme-surface-soft border rounded-xl p-4">
-              <div class="text-xs theme-text-muted">{{ t('rechargeOrder.paidAtLabel') }}</div>
-              <div class="theme-text-primary font-mono mt-1">{{ formatDate(recharge.paid_at) }}</div>
-            </div>
-            <div v-if="payment?.expires_at" class="theme-surface-soft border rounded-xl p-4">
-              <div class="text-xs theme-text-muted">{{ t('payment.expiresAt') }}</div>
-              <div class="theme-text-primary font-mono mt-1">{{ formatDate(payment.expires_at) }}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 备注 -->
-        <div v-if="recharge.remark" class="theme-panel rounded-2xl p-6">
-          <h2 class="text-lg font-bold mb-2">{{ t('rechargeOrder.remarkLabel') }}</h2>
-          <p class="text-sm theme-text-muted">{{ recharge.remark }}</p>
-        </div>
-
         <!-- 支付区域（仅待支付状态） -->
         <div v-if="isPending" class="theme-panel rounded-2xl p-6">
           <h2 class="text-lg font-bold mb-4">{{ t('rechargeOrder.paymentTitle') }}</h2>
           <div v-if="isPending" class="mb-3 text-xs theme-text-muted">
             {{ t('personalCenter.wallet.pendingHint') }}
           </div>
-          <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div v-if="showQRCode" class="rounded-xl border theme-surface-soft p-4">
-              <div class="mb-3 text-sm font-semibold theme-text-primary">{{ t('payment.qrTitle') }}</div>
+          <div class="flex flex-col items-center gap-4">
+            <div v-if="showQRCode" class="w-full max-w-sm rounded-xl border theme-surface-soft p-4">
+              <div class="mb-3 text-sm font-semibold theme-text-primary text-center">{{ t('payment.qrTitle') }}</div>
               <div class="flex items-center justify-center">
                 <img :src="qrImageUrl" alt="Recharge QR" class="h-52 w-52 object-contain" />
               </div>
-              <div v-if="qrUsingPayLinkFallback" class="mt-3 text-xs theme-text-muted">
+              <div v-if="qrUsingPayLinkFallback" class="mt-3 text-xs theme-text-muted text-center">
                 {{ t('payment.qrFallbackHint') }}
               </div>
+              <div class="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  class="inline-flex items-center rounded-lg border theme-btn-secondary px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                  :disabled="checkingPayment"
+                  @click="checkPayment"
+                >
+                  {{ checkingPayment ? t('personalCenter.wallet.checkingPayStatus') : t('personalCenter.wallet.checkPayStatus') }}
+                </button>
+              </div>
             </div>
-            <div class="rounded-xl border theme-surface-soft p-4">
-              <div v-if="hasCryptoPaymentDetails" class="space-y-2 rounded-xl border theme-border bg-white/5 p-3 text-sm">
+
+            <div v-if="hasCryptoPaymentDetails" class="w-full max-w-md rounded-xl border theme-surface-soft p-4">
+              <div class="space-y-2 rounded-xl border theme-border bg-white/5 p-3 text-sm">
                 <div
                   v-for="item in cryptoPaymentDetails"
                   :key="item.key"
@@ -130,30 +119,21 @@
                   <span v-if="walletAddressCopied" class="text-xs text-emerald-500">{{ t('payment.copied') }}</span>
                 </div>
               </div>
-              <div class="mt-4 flex flex-wrap items-center gap-3">
-                <button
-                  v-if="payLink"
-                  type="button"
-                  @click="handleOpenPayLink"
-                  class="inline-flex items-center rounded-lg border theme-btn-secondary px-3 py-1.5 text-xs font-semibold"
-                >
-                  {{ t('payment.openPayLink') }}
-                </button>
-                <button
-                  type="button"
-                  class="inline-flex items-center rounded-lg border theme-btn-secondary px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-                  :disabled="checkingPayment"
-                  @click="checkPayment"
-                >
-                  {{ checkingPayment ? t('personalCenter.wallet.checkingPayStatus') : t('personalCenter.wallet.checkPayStatus') }}
-                </button>
-              </div>
-              <div v-if="payLink" class="mt-3 text-xs theme-text-muted break-all">
-                {{ t('payment.payLinkLabel') }}：{{ payLink }}
-              </div>
-              <div v-if="showTelegramPayHint" class="mt-3 text-xs theme-text-muted">
-                {{ t('payment.telegramExternalHint') }}
-              </div>
+            </div>
+
+            <div v-if="!showQRCode" class="flex justify-center">
+              <button
+                type="button"
+                class="inline-flex items-center rounded-lg border theme-btn-secondary px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                :disabled="checkingPayment"
+                @click="checkPayment"
+              >
+                {{ checkingPayment ? t('personalCenter.wallet.checkingPayStatus') : t('personalCenter.wallet.checkPayStatus') }}
+              </button>
+            </div>
+
+            <div v-if="showTelegramPayHint" class="text-xs theme-text-muted text-center">
+              {{ t('payment.telegramExternalHint') }}
             </div>
           </div>
         </div>
@@ -199,6 +179,7 @@ const isPending = computed(() => {
 })
 
 const payLink = computed(() => String(payment.value?.pay_url || '').trim())
+const paymentExpiresAt = computed(() => String(payment.value?.expires_at || recharge.value?.expires_at || '').trim())
 const interactionMode = computed(() => String(payment.value?.interaction_mode || '').toLowerCase())
 const isTelegramMiniApp = computed(() => telegramMiniAppStore.isMiniApp && telegramMiniAppStore.isReady)
 const showTelegramPayHint = computed(() => isTelegramMiniApp.value && Boolean(payLink.value))
