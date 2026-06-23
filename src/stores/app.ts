@@ -22,7 +22,10 @@ export const useAppStore = defineStore('app', () => {
     const isResellerTenant = computed(() => {
         return String(config.value?.tenant?.mode || '').trim().toLowerCase() === 'reseller'
     })
-    const canAccessResellerConsole = computed(() => !!config.value && !isResellerTenant.value)
+    const canAccessResellerConsole = computed(() => {
+        if (!config.value || isResellerTenant.value) return false
+        return config.value.disable_reseller_console !== true
+    })
 
     // 设置语言
     const setLocale = (newLocale: string) => {

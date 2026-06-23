@@ -51,13 +51,25 @@ export function usePersonalCenter(sectionGetter: () => PersonalSection) {
 
   const canAccessResellerConsole = computed(() => appStore.canAccessResellerConsole)
   const visibleSectionItems = computed(() => {
-    return sectionItems.filter((item) => item.key !== 'reseller' || canAccessResellerConsole.value)
+    return sectionItems.filter((item) => {
+      if (item.key === 'reseller' && !canAccessResellerConsole.value) return false
+      if (item.key === 'affiliate' && appStore.config?.disable_affiliate === true) return false
+      if (item.key === 'api' && appStore.config?.disable_api === true) return false
+      return true
+    })
   })
   const currentSection = computed<PersonalSection>(() => {
-    if (sectionGetter() === 'reseller' && !canAccessResellerConsole.value) {
+    const section = sectionGetter()
+    if (section === 'reseller' && !canAccessResellerConsole.value) {
       return 'overview'
     }
-    return sectionGetter()
+    if (section === 'affiliate' && appStore.config?.disable_affiliate === true) {
+      return 'overview'
+    }
+    if (section === 'api' && appStore.config?.disable_api === true) {
+      return 'overview'
+    }
+    return section
   })
   const globalAlert = ref<PageAlert | null>(null)
 
