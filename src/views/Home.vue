@@ -1,12 +1,12 @@
 <template>
-  <div class="home-page min-h-screen theme-page">
+  <div class="home-page min-h-screen bg-background text-foreground">
 
     <!-- ==================== LIST MODE ==================== -->
     <template v-if="templateMode === 'list'">
       <!-- Hero Banner (shared with card mode) -->
-      <section v-if="showHeroSection" class="relative z-10 border-b theme-border pt-24 pb-10">
+      <section v-if="showHeroSection" class="relative z-10 border-b pt-24 pb-10">
         <div class="container mx-auto px-4">
-          <div class="relative overflow-hidden rounded-2xl border theme-panel"
+          <div class="relative overflow-hidden rounded-2xl border bg-card"
             @touchstart="onBannerTouchStart"
             @touchend="onBannerTouchEnd">
             <Transition name="banner-fade" mode="out-in">
@@ -25,20 +25,16 @@
                 <button type="button"
                   class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-black/20 text-white transition hover:bg-black/35 md:h-9 md:w-9"
                   @click="handlePrevHeroBanner" :aria-label="t('common.previousBanner')">
-                  <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                  </svg>
+                  <ChevronLeft class="h-3.5 w-3.5" />
                 </button>
                 <button type="button"
                   class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-black/20 text-white transition hover:bg-black/35 md:h-9 md:w-9"
                   @click="handleNextHeroBanner" :aria-label="t('common.nextBanner')">
-                  <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                  </svg>
+                  <ChevronRight class="h-3.5 w-3.5" />
                 </button>
               </div>
               <div class="space-y-2 sm:space-y-3">
-                <span class="theme-badge theme-badge-inverse gap-2 text-xs font-semibold uppercase tracking-wider">
+                <span :class="heroBadgeClass">
                   <span class="h-2 w-2 rounded-full bg-emerald-300"></span>
                   {{ heroBadge }}
                 </span>
@@ -81,26 +77,22 @@
               <!-- Search Bar -->
               <div class="relative mb-4">
                 <div class="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-                  <svg class="w-4 h-4 theme-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+                  <Search class="w-4 h-4 text-muted-foreground" />
                 </div>
                 <input
                   v-model="listSearchQuery"
                   type="text"
-                  class="w-full h-10 pl-10 pr-10 rounded-xl border theme-panel text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 theme-text-primary placeholder:theme-text-muted transition-shadow"
+                  class="w-full h-10 pl-10 pr-10 rounded-xl border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground placeholder:text-muted-foreground transition-shadow"
                   :placeholder="t('products.searchBoxPlaceholder')"
                   @keydown.enter="listOnSearch"
                 />
                 <button
                   v-if="listSearchQuery"
                   type="button"
-                  class="absolute inset-y-0 right-3 flex items-center theme-text-muted hover:theme-text-primary transition-colors"
+                  class="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
                   @click="listClearSearch"
                 >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X class="w-4 h-4" />
                 </button>
               </div>
 
@@ -113,7 +105,7 @@
                   </div>
                   <div class="space-y-2">
                     <div v-for="j in 3" :key="j"
-                      class="theme-panel rounded-xl border flex items-center h-[72px]">
+                      class="bg-card rounded-xl border flex items-center h-[72px]">
                       <div class="w-14 h-14 m-2 rounded-lg theme-skeleton flex-shrink-0"></div>
                       <div class="flex-1 px-3 py-2 space-y-2">
                         <div class="h-3.5 w-1/3 rounded theme-skeleton"></div>
@@ -132,11 +124,11 @@
                 <div v-for="group in listProductGroups" :key="group.categoryId ?? 'uncategorized'">
                   <!-- Category Header -->
                   <div class="flex items-center gap-2 mb-3 px-0.5">
-                    <span class="w-1 h-5 rounded-full theme-accent-stick flex-shrink-0"></span>
+                    <span class="w-1 h-5 rounded-full bg-primary flex-shrink-0"></span>
                     <img v-if="group.categoryIcon" :src="getImageUrl(group.categoryIcon)"
                       :alt="group.categoryName" loading="lazy" class="h-5 w-5 rounded object-cover flex-shrink-0" />
-                    <span class="text-sm font-semibold theme-text-primary truncate">{{ group.categoryName }}</span>
-                    <span class="text-xs theme-text-muted">({{ group.products.length }})</span>
+                    <span class="text-sm font-semibold text-foreground truncate">{{ group.categoryName }}</span>
+                    <span class="text-xs text-muted-foreground">({{ group.products.length }})</span>
                   </div>
                   <!-- Products in this category -->
                   <div class="space-y-2">
@@ -162,13 +154,7 @@
               </div>
 
               <!-- Empty State -->
-              <div v-else class="text-center py-16 border theme-panel-soft rounded-2xl backdrop-blur-sm">
-                <svg class="w-16 h-16 mx-auto theme-text-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                </svg>
-                <p class="theme-text-muted text-lg">{{ t('products.empty') }}</p>
-              </div>
+              <EmptyState v-else variant="soft" icon="package" :title="t('products.empty')" />
             </main>
           </div>
         </div>
@@ -177,9 +163,9 @@
 
     <!-- ==================== CARD MODE (default) ==================== -->
     <template v-else>
-    <section v-if="showHeroSection" class="relative z-10 border-b theme-border pt-24 pb-10">
+    <section v-if="showHeroSection" class="relative z-10 border-b pt-24 pb-10">
       <div class="container mx-auto px-4">
-        <div class="relative overflow-hidden rounded-2xl border theme-panel"
+        <div class="relative overflow-hidden rounded-2xl border bg-card"
           @touchstart="onBannerTouchStart"
           @touchend="onBannerTouchEnd">
           <!-- Banner image with fade transition -->
@@ -190,7 +176,7 @@
 
             <div v-if="bannerLoading" class="relative flex min-h-[260px] flex-col justify-between p-5 sm:min-h-[320px] sm:p-6 md:min-h-[420px] md:p-12">
             <div class="mb-4 flex items-center justify-end">
-              <span class="theme-badge theme-badge-inverse text-xs font-medium">
+              <span :class="heroBadgeClass">
                 {{ t('common.loading') }}
               </span>
             </div>
@@ -215,9 +201,7 @@
                 @click="handlePrevHeroBanner"
                 :aria-label="t('common.previousBanner')"
               >
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
+                <ChevronLeft class="h-4 w-4" />
               </button>
               <button
                 type="button"
@@ -225,14 +209,12 @@
                 @click="handleNextHeroBanner"
                 :aria-label="t('common.nextBanner')"
               >
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
+                <ChevronRight class="h-4 w-4" />
               </button>
             </div>
 
             <div class="space-y-3 sm:space-y-4">
-              <span class="theme-badge theme-badge-inverse gap-2 text-xs font-semibold uppercase tracking-wider">
+              <span :class="heroBadgeClass">
                 <span class="h-2 w-2 rounded-full bg-emerald-300"></span>
                 {{ heroBadge }}
               </span>
@@ -251,9 +233,7 @@
                 class="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition hover:scale-105 sm:min-h-[44px] sm:px-5 sm:py-3"
               >
                 {{ heroPrimaryButtonText }}
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
+                <ArrowRight class="h-4 w-4" />
               </button>
               <router-link
                 v-if="!hasHeroLink"
@@ -285,12 +265,12 @@
         <div class="mb-8 flex items-end justify-between gap-4">
           <div>
             <h2 class="theme-section-heading text-3xl md:text-4xl">{{ t('home.featured.title') }}</h2>
-            <p class="mt-2 text-sm theme-text-secondary">{{ t('home.featured.description') }}</p>
+            <p class="mt-2 text-sm text-muted-foreground">{{ t('home.featured.description') }}</p>
           </div>
           <router-link
                 v-if="!hasHeroLink"
                 to="/products"
-            class="text-sm font-semibold theme-link-muted"
+            class="text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
           >
             {{ t('home.featured.viewAll') }}
           </router-link>
@@ -307,10 +287,8 @@
             @quick-buy="openQuickBuy"
           />
         </div>
-        <div v-else class="rounded-2xl border border-dashed theme-border py-16 text-center theme-text-muted theme-slide-up">
-          <svg class="mx-auto h-16 w-16 mb-4 theme-text-muted opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-          </svg>
+        <div v-else class="rounded-2xl border border-dashed py-16 text-center text-muted-foreground theme-slide-up">
+          <PackageOpen class="mx-auto h-16 w-16 mb-4 text-muted-foreground opacity-50" :stroke-width="1.5" />
           {{ t('home.featured.empty') }}
         </div>
       </div>
@@ -324,11 +302,11 @@
         <div class="mb-6 flex items-end justify-between gap-4">
           <div>
             <h2 class="theme-section-heading text-[1.7rem]">{{ t('home.latest.title') }}</h2>
-            <p class="mt-1 text-sm theme-text-secondary">{{ t('home.latest.description') }}</p>
+            <p class="mt-1 text-sm text-muted-foreground">{{ t('home.latest.description') }}</p>
           </div>
           <div class="flex items-center gap-3 text-sm">
-            <router-link v-if="blogEnabled" to="/blog" class="theme-link-muted">{{ t('nav.blog') }}</router-link>
-            <router-link v-if="noticeEnabled" to="/notice" class="theme-link-muted">{{ t('nav.notice') }}</router-link>
+            <router-link v-if="blogEnabled" to="/blog" class="text-muted-foreground transition-colors hover:text-foreground">{{ t('nav.blog') }}</router-link>
+            <router-link v-if="noticeEnabled" to="/notice" class="text-muted-foreground transition-colors hover:text-foreground">{{ t('nav.notice') }}</router-link>
           </div>
         </div>
 
@@ -336,16 +314,16 @@
           <article
             v-for="post in posts"
             :key="post.id"
-            class="cursor-pointer rounded-xl border theme-panel p-5 transition hover:shadow-md"
+            class="cursor-pointer rounded-xl border bg-card p-5 shadow-sm transition hover:shadow-md"
             @click="goToPost(post.slug)"
           >
-            <div class="mb-2 text-xs theme-text-muted">{{ formatDate(post.published_at) }}</div>
+            <div class="mb-2 text-xs text-muted-foreground">{{ formatDate(post.published_at) }}</div>
             <h3 class="line-clamp-2 text-base font-semibold">{{ getLocalizedText(post.title) }}</h3>
-            <p class="mt-2 line-clamp-2 text-sm theme-text-secondary">{{ getLocalizedText(post.summary) }}</p>
-            <div class="mt-4 text-sm font-medium theme-link">{{ t('blog.readMore') }}</div>
+            <p class="mt-2 line-clamp-2 text-sm text-muted-foreground">{{ getLocalizedText(post.summary) }}</p>
+            <div class="mt-4 text-sm font-medium text-primary">{{ t('blog.readMore') }}</div>
           </article>
         </div>
-        <div v-else class="rounded-2xl border border-dashed theme-border py-12 text-center theme-text-muted">
+        <div v-else class="rounded-2xl border border-dashed py-12 text-center text-muted-foreground">
           {{ t('blog.empty') }}
         </div>
       </div>
@@ -373,6 +351,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { ArrowRight, ChevronLeft, ChevronRight, PackageOpen, Search, X } from 'lucide-vue-next'
 import { postAPI, productAPI } from '../api'
 import { getImageUrl } from '../utils/image'
 import { useLocalized } from '../composables/useProduct'
@@ -386,6 +365,7 @@ import ProductListItem from '../components/ProductListItem.vue'
 import ProductQuickBuy from '../components/ProductQuickBuy.vue'
 import CategorySidebar from '../components/CategorySidebar.vue'
 import PaginationNav from '../components/PaginationNav.vue'
+import EmptyState from '../components/EmptyState.vue'
 import AnnouncementModal from '../components/AnnouncementModal.vue'
 import { useAnnouncement, type HomeAnnouncement } from '../composables/useAnnouncement'
 
@@ -393,6 +373,9 @@ const router = useRouter()
 const { t } = useI18n()
 const { getLocalizedText } = useLocalized()
 const appStore = useAppStore()
+
+// 英雄横幅上的玻璃态徽章(白字深底,跟随图片而非主题)
+const heroBadgeClass = 'inline-flex items-center gap-2 rounded-md border border-white/25 bg-black/55 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur-sm'
 
 const templateMode = computed(() => appStore.config?.template_mode || 'card')
 const navBuiltin = computed(() => (appStore.config?.nav_config as { builtin?: Record<string, boolean> } | undefined)?.builtin)

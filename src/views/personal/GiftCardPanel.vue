@@ -1,37 +1,29 @@
 <template>
   <div class="space-y-6 gift-card-panel-enter">
-    <div class="theme-personal-card overflow-hidden">
-      <div class="relative">
-        <div class="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl"></div>
-        <div class="pointer-events-none absolute -bottom-16 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-sky-400/10 blur-2xl"></div>
-        <div class="relative">
-          <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 class="text-xl font-bold theme-text-primary">{{ t('personalCenter.giftCard.title') }}</h2>
-              <p class="mt-1 text-sm theme-text-muted">{{ t('personalCenter.giftCard.subtitle') }}</p>
-            </div>
-            <span class="theme-badge theme-badge-accent px-3 py-1 text-xs font-semibold">
-              {{ t('personalCenter.tabs.giftCard') }}
-            </span>
-          </div>
+    <div class="rounded-2xl border bg-card p-7 shadow-sm">
+      <div>
+        <div>
+          <PanelHeading :title="t('personalCenter.giftCard.title')" :description="t('personalCenter.giftCard.subtitle')" :icon="Gift">
+            <template #actions>
+              <Badge variant="accent" size="sm">{{ t('personalCenter.tabs.giftCard') }}</Badge>
+            </template>
+          </PanelHeading>
 
-          <div v-if="panelAlert" class="mb-5 rounded-xl border px-4 py-3 text-sm shadow-sm" :class="pageAlertClass(panelAlert.level)">
-            {{ panelAlert.message }}
-          </div>
+          <Alert v-if="panelAlert" class="mb-5" :variant="pageAlertVariant(panelAlert.level)" :class="pageAlertToneClass(panelAlert.level)">
+            <AlertDescription>{{ panelAlert.message }}</AlertDescription>
+          </Alert>
 
           <div
             v-if="lastRedeem"
-            class="mb-6 rounded-2xl border border-emerald-200/70 bg-emerald-50/60 p-4 shadow-sm success-burst dark:border-emerald-500/20 dark:bg-emerald-500/10"
+            class="mb-6 rounded-2xl border border-success/25 bg-success/10 p-4 shadow-sm success-burst"
           >
             <div class="flex items-start gap-3">
-              <div class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white">
-                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 010 1.415l-7.08 7.08a1 1 0 01-1.415 0l-3.18-3.18a1 1 0 111.414-1.414l2.473 2.473 6.373-6.374a1 1 0 011.415 0z" clip-rule="evenodd" />
-                </svg>
+              <div class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-success text-white">
+                <Check class="h-4 w-4" />
               </div>
               <div class="flex-1 space-y-2">
-                <h3 class="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{{ t('personalCenter.giftCard.successTitle') }}</h3>
-                <div class="grid grid-cols-1 gap-2 text-xs text-emerald-700/90 dark:text-emerald-200 md:grid-cols-3">
+                <h3 class="text-sm font-semibold text-success">{{ t('personalCenter.giftCard.successTitle') }}</h3>
+                <div class="grid grid-cols-1 gap-2 text-xs text-success/90 md:grid-cols-3">
                   <div>
                     <div class="opacity-75">{{ t('personalCenter.giftCard.successCode') }}</div>
                     <div class="mt-0.5 font-mono">{{ String(lastRedeem.gift_card?.code || '-').toUpperCase() }}</div>
@@ -51,19 +43,19 @@
 
           <form class="space-y-4" @submit.prevent="submitRedeem">
             <div>
-              <label class="mb-2 block text-sm font-medium theme-text-secondary">{{ t('personalCenter.giftCard.codeLabel') }}</label>
-              <input
-                v-model.trim="redeemForm.code"
+              <Label class="mb-2 block">{{ t('personalCenter.giftCard.codeLabel') }}</Label>
+              <Input
+                v-model="redeemForm.code"
                 type="text"
                 maxlength="80"
                 autocomplete="off"
                 :placeholder="t('personalCenter.giftCard.codePlaceholder')"
-                class="w-full form-input-lg font-mono uppercase tracking-[0.08em]"
+                class="h-11 font-mono uppercase tracking-[0.08em]"
               />
             </div>
 
-            <div v-if="redeemCaptchaEnabled" class="rounded-xl border theme-surface-soft px-4 py-3">
-              <p class="text-xs font-semibold uppercase tracking-[0.14em] theme-text-muted">{{ t('auth.common.captchaLabel') }}</p>
+            <div v-if="redeemCaptchaEnabled" class="rounded-xl border px-4 py-3">
+              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{{ t('auth.common.captchaLabel') }}</p>
               <div class="mt-2">
                 <ImageCaptcha
                   v-if="captchaProvider === 'image'"
@@ -82,21 +74,12 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-3 pt-1">
-              <button
-                type="submit"
-                :disabled="submitting"
-                class="inline-flex h-11 items-center justify-center rounded-xl theme-btn-primary px-5 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-              >
+              <Button type="submit" :disabled="submitting" class="h-11 px-5 font-bold">
                 {{ submitting ? t('personalCenter.giftCard.redeeming') : t('personalCenter.giftCard.redeemButton') }}
-              </button>
-              <button
-                type="button"
-                :disabled="submitting"
-                class="inline-flex h-11 items-center justify-center rounded-xl border theme-btn-secondary px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-                @click="resetForm"
-              >
+              </Button>
+              <Button type="button" variant="outline" :disabled="submitting" class="h-11 font-semibold" @click="resetForm">
                 {{ t('personalCenter.giftCard.resetButton') }}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -110,9 +93,16 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { giftCardAPI, type CaptchaPayload, type GiftCardRedeemResult } from '../../api'
 import { useAppStore } from '../../stores/app'
-import { pageAlertClass, type PageAlert } from '../../utils/alerts'
+import { pageAlertVariant, pageAlertToneClass, type PageAlert } from '../../utils/alerts'
 import ImageCaptcha from '../../components/captcha/ImageCaptcha.vue'
 import TurnstileCaptcha from '../../components/captcha/TurnstileCaptcha.vue'
+import { Check, Gift } from 'lucide-vue-next'
+import PanelHeading from '../../components/shared/PanelHeading.vue'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 const { t } = useI18n()
 const appStore = useAppStore()

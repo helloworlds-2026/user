@@ -1,17 +1,7 @@
 <template>
-  <!-- Config loading screen -->
-  <div v-if="!appStore.config" class="fixed inset-0 theme-page flex items-center justify-center z-[9999]">
-    <div class="flex flex-col items-center gap-4">
-      <svg class="w-10 h-10 animate-spin text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-      </svg>
-    </div>
-  </div>
-
-  <div v-else id="app" class="min-h-screen theme-page flex flex-col">
-    <Navbar />
-    <main class="flex-1 pb-14 lg:pb-0">
+  <div id="app" class="min-h-screen bg-background text-foreground flex flex-col">
+    <!-- vault 模板：自带顶栏/页脚的外壳包裹页面（控制台仍走下方分支） -->
+    <VaultLayout v-if="isVault && !isResellerConsole">
       <ErrorBoundary>
         <RouterView v-slot="{ Component }">
           <Transition name="page-fade" mode="out-in">
@@ -19,21 +9,38 @@
           </Transition>
         </RouterView>
       </ErrorBoundary>
-    </main>
+    </VaultLayout>
 
-    <!-- ✅ Footer 已移除 -->
+    <!-- classic 模板 / 分销控制台（保持原有结构不变） -->
+    <template v-else>
+      <Navbar v-if="!isResellerConsole" />
+      <main class="flex-1" :class="isResellerConsole ? '' : 'pb-14 lg:pb-0'">
+        <ErrorBoundary>
+          <RouterView v-slot="{ Component }">
+            <Transition name="page-fade" mode="out-in">
+              <component :is="Component" />
+            </Transition>
+          </RouterView>
+        </ErrorBoundary>
+      </main>
+      <Footer v-if="!isResellerConsole" />
+      <BackToTop v-if="!isResellerConsole" />
+      <MobileBottomNav v-if="!isResellerConsole" />
+    </template>
 
     <Loading :loading="appStore.loading" />
     <Toast />
     <ConfirmDialog />
-    <BackToTop />
-    <MobileBottomNav />
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, defineAsyncComponent } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAppStore } from './stores/app'
+import { getActiveTemplate } from './templates/registry'
 import Navbar from './components/Navbar.vue'
+import Footer from './components/Footer.vue'
 import Loading from './components/Loading.vue'
 import Toast from './components/Toast.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
@@ -41,8 +48,15 @@ import ErrorBoundary from './components/ErrorBoundary.vue'
 import BackToTop from './components/BackToTop.vue'
 import MobileBottomNav from './components/MobileBottomNav.vue'
 
+// vault 外壳按需加载，classic 用户不会拉取其 chunk/样式
+const VaultLayout = defineAsyncComponent(() => import('./templates/vault/layout/VaultLayout.vue'))
+
 // config 由 router.beforeEach 统一加载，无需在此重复调用
 const appStore = useAppStore()
+const route = useRoute()
+const isResellerConsole = computed(() => route.meta.resellerConsole === true)
+// getActiveTemplate 读取 appStore.config（响应式），config 加载后会重新计算
+const isVault = computed(() => getActiveTemplate() === 'vault')
 </script>
 
 <style>

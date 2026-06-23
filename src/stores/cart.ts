@@ -11,6 +11,12 @@ export interface CartItem {
     skuManualStockSold?: number
     skuAutoStockAvailable?: number
     skuUpstreamStock?: number
+    skuStockStatus?: string
+    skuStockDisplayMode?: string
+    skuStockDisplay?: string
+    skuStockRangeMin?: number
+    skuStockRangeMax?: number
+    skuStockQuantityHidden?: boolean
     skuStockEnforced?: boolean
     skuStockSnapshotAt?: string
     slug: string
@@ -97,6 +103,12 @@ const loadCartItems = (): CartItem[] => {
                     skuManualStockSold: normalizeOptionalStockNumber(row.skuManualStockSold ?? row.sku_manual_stock_sold),
                     skuAutoStockAvailable: normalizeOptionalStockNumber(row.skuAutoStockAvailable ?? row.sku_auto_stock_available),
                     skuUpstreamStock: normalizeOptionalStockNumber(row.skuUpstreamStock ?? row.sku_upstream_stock, true),
+                    skuStockStatus: normalizeOptionalString(row.skuStockStatus ?? row.sku_stock_status),
+                    skuStockDisplayMode: normalizeOptionalString(row.skuStockDisplayMode ?? row.sku_stock_display_mode),
+                    skuStockDisplay: normalizeOptionalString(row.skuStockDisplay ?? row.sku_stock_display),
+                    skuStockRangeMin: normalizeOptionalStockNumber(row.skuStockRangeMin ?? row.sku_stock_range_min),
+                    skuStockRangeMax: normalizeOptionalStockNumber(row.skuStockRangeMax ?? row.sku_stock_range_max),
+                    skuStockQuantityHidden: normalizeOptionalBoolean(row.skuStockQuantityHidden ?? row.sku_stock_quantity_hidden),
                     skuStockEnforced: normalizeOptionalBoolean(row.skuStockEnforced ?? row.sku_stock_enforced),
                     skuStockSnapshotAt: normalizeOptionalString(row.skuStockSnapshotAt ?? row.sku_stock_snapshot_at),
                     minPurchaseQuantity: normalizeOptionalLimitNumber(row.minPurchaseQuantity ?? row.min_purchase_quantity),
@@ -129,6 +141,12 @@ export const useCartStore = defineStore('cart', () => {
             skuManualStockSold: normalizeOptionalStockNumber(item.skuManualStockSold),
             skuAutoStockAvailable: normalizeOptionalStockNumber(item.skuAutoStockAvailable),
             skuUpstreamStock: normalizeOptionalStockNumber(item.skuUpstreamStock, true),
+            skuStockStatus: normalizeOptionalString(item.skuStockStatus),
+            skuStockDisplayMode: normalizeOptionalString(item.skuStockDisplayMode),
+            skuStockDisplay: normalizeOptionalString(item.skuStockDisplay),
+            skuStockRangeMin: normalizeOptionalStockNumber(item.skuStockRangeMin),
+            skuStockRangeMax: normalizeOptionalStockNumber(item.skuStockRangeMax),
+            skuStockQuantityHidden: normalizeOptionalBoolean(item.skuStockQuantityHidden),
             skuStockEnforced: normalizeOptionalBoolean(item.skuStockEnforced),
             skuStockSnapshotAt: normalizeOptionalString(item.skuStockSnapshotAt) || new Date().toISOString(),
             minPurchaseQuantity: normalizeOptionalLimitNumber(item.minPurchaseQuantity),
@@ -157,6 +175,12 @@ export const useCartStore = defineStore('cart', () => {
             existing.skuManualStockSold = normalizedItem.skuManualStockSold
             existing.skuAutoStockAvailable = normalizedItem.skuAutoStockAvailable
             existing.skuUpstreamStock = normalizedItem.skuUpstreamStock
+            existing.skuStockStatus = normalizedItem.skuStockStatus
+            existing.skuStockDisplayMode = normalizedItem.skuStockDisplayMode
+            existing.skuStockDisplay = normalizedItem.skuStockDisplay
+            existing.skuStockRangeMin = normalizedItem.skuStockRangeMin
+            existing.skuStockRangeMax = normalizedItem.skuStockRangeMax
+            existing.skuStockQuantityHidden = normalizedItem.skuStockQuantityHidden
             existing.skuStockEnforced = normalizedItem.skuStockEnforced
             existing.skuStockSnapshotAt = normalizedItem.skuStockSnapshotAt
         } else {
@@ -189,6 +213,12 @@ export const useCartStore = defineStore('cart', () => {
         target.skuManualStockSold = normalizeOptionalStockNumber(target.skuManualStockSold)
         target.skuAutoStockAvailable = normalizeOptionalStockNumber(target.skuAutoStockAvailable)
         target.skuUpstreamStock = normalizeOptionalStockNumber(target.skuUpstreamStock, true)
+        target.skuStockStatus = normalizeOptionalString(target.skuStockStatus)
+        target.skuStockDisplayMode = normalizeOptionalString(target.skuStockDisplayMode)
+        target.skuStockDisplay = normalizeOptionalString(target.skuStockDisplay)
+        target.skuStockRangeMin = normalizeOptionalStockNumber(target.skuStockRangeMin)
+        target.skuStockRangeMax = normalizeOptionalStockNumber(target.skuStockRangeMax)
+        target.skuStockQuantityHidden = normalizeOptionalBoolean(target.skuStockQuantityHidden)
         target.skuStockEnforced = normalizeOptionalBoolean(target.skuStockEnforced)
         target.skuStockSnapshotAt = normalizeOptionalString(target.skuStockSnapshotAt)
         target.minPurchaseQuantity = normalizeOptionalLimitNumber(target.minPurchaseQuantity)
