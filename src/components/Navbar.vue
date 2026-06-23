@@ -31,10 +31,10 @@
       </div>
 
       <!-- Right Side Actions -->
-      <div class="flex items-center shrink-0 space-x-2 lg:space-x-4">
+      <div class="flex items-center shrink-0 gap-1 lg:gap-1.5">
         <!-- Cart (desktop only, mobile has bottom nav) -->
         <router-link to="/cart"
-          class="hidden lg:flex theme-nav-link relative gap-2 px-3 min-w-[44px] min-h-[44px] items-center justify-center whitespace-nowrap">
+          class="hidden lg:flex theme-nav-link relative gap-1.5 px-2 min-w-[40px] min-h-[40px] items-center justify-center whitespace-nowrap">
           <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.3 2.6a1 1 0 00.9 1.4H19M7 13l.4 2M10 21a1 1 0 100-2 1 1 0 000 2zm8 1a1 1 0 100-2 1 1 0 000 2z" />
@@ -62,14 +62,21 @@
             {{ t('navbar.guestOrders') }}
           </router-link>
         <router-link v-if="userAuthStore.isAuthenticated" to="/me"
-          class="hidden lg:inline-flex theme-nav-link items-center gap-1.5 whitespace-nowrap">
+          class="hidden lg:inline-flex theme-nav-link items-center gap-1 px-2 py-1.5 whitespace-nowrap">
           <svg class="w-4 h-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
           {{ t('navbar.personalCenter') }}
         </router-link>
+        <router-link v-if="userAuthStore.isAuthenticated" to="/me/wallet"
+          class="hidden lg:inline-flex theme-nav-link items-center gap-1 px-2 py-1.5 whitespace-nowrap">
+          <svg class="w-4 h-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+          {{ t('navbar.balanceRecharge') }}
+        </router-link>
         <button v-if="userAuthStore.isAuthenticated" @click="userAuthStore.logout()"
-          class="hidden lg:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-white hover:bg-red-50 dark:hover:bg-red-500/10 transition-all border border-transparent hover:border-red-200 dark:hover:border-red-500/20 text-xs font-medium whitespace-nowrap">
+          class="hidden lg:inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-white hover:bg-red-50 dark:hover:bg-red-500/10 transition-all border border-transparent hover:border-red-200 dark:hover:border-red-500/20 text-xs font-medium whitespace-nowrap">
           <svg class="w-4 h-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
@@ -176,6 +183,14 @@
               {{ item.label }}
             </a>
           </template>
+
+          <router-link v-if="userAuthStore.isAuthenticated" to="/me/wallet" @click="showMobileMenu = false"
+            class="block w-full text-left px-4 py-3 rounded-xl theme-nav-link text-sm min-h-[44px] flex items-center gap-3">
+            <svg class="w-5 h-5 shrink-0 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+            {{ t('navbar.balanceRecharge') }}
+          </router-link>
 
           <!-- Logout (login/me already in bottom nav) -->
           <button v-if="userAuthStore.isAuthenticated" @click="userAuthStore.logout(); showMobileMenu = false"

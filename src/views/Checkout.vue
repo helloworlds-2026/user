@@ -230,10 +230,17 @@
           </div>
           <div
             v-if="checkoutAlert"
-            class="mb-4 rounded-lg border p-3 text-sm"
+            class="mb-4 rounded-lg border p-3 text-sm flex flex-wrap items-center gap-2"
             :class="pageAlertClass(checkoutAlert.level)"
           >
-            {{ checkoutAlert.message }}
+            <span>{{ checkoutAlert.message }}</span>
+            <router-link
+              v-if="showWalletRechargeAction && checkoutAlert.message === walletInsufficientHintText"
+              to="/me/wallet"
+              class="inline-flex items-center rounded-lg border theme-btn-secondary px-2.5 py-1 text-xs font-semibold shrink-0"
+            >
+              {{ t('navbar.balanceRecharge') }}
+            </router-link>
           </div>
 
           <!-- Payment Channel Selection -->
@@ -260,8 +267,14 @@
               <div v-if="useBalance" class="mt-2 space-y-1 text-xs theme-text-muted">
                 <div>{{ t('payment.walletDeductLabel') }}：{{ expectedWalletPaidDisplay }}</div>
                 <div v-if="!walletOnlyPayment">{{ t('payment.onlinePayLabel') }}：{{ expectedOnlinePayDisplay }}</div>
-                <div v-if="walletOnlyPayment && expectedOnlinePayCents > 0" class="text-amber-600 dark:text-amber-400">
-                  {{ t('payment.walletInsufficientHint') }}
+                <div v-if="walletOnlyPayment && expectedOnlinePayCents > 0" class="flex flex-wrap items-center gap-2 text-amber-600 dark:text-amber-400">
+                  <span>{{ t('payment.walletInsufficientHint') }}</span>
+                  <router-link
+                    to="/me/wallet"
+                    class="inline-flex items-center rounded-lg border theme-btn-secondary px-2.5 py-1 text-xs font-semibold shrink-0"
+                  >
+                    {{ t('navbar.balanceRecharge') }}
+                  </router-link>
                 </div>
               </div>
             </div>
@@ -427,6 +440,8 @@ const expectedOnlinePayCents = computed(() => {
 })
 const expectedWalletPaidDisplay = computed(() => formatPrice(centsToAmount(expectedWalletPaidCents.value), previewCurrency.value))
 const expectedOnlinePayDisplay = computed(() => formatPrice(centsToAmount(expectedOnlinePayCents.value), previewCurrency.value))
+const showWalletRechargeAction = computed(() => walletOnlyPayment.value && expectedOnlinePayCents.value > 0)
+const walletInsufficientHintText = computed(() => t('payment.walletInsufficientHint'))
 const requiresOnlineChannel = computed(() => {
   if (!userAuthStore.isAuthenticated) return true
   if (!useBalance.value) return true
