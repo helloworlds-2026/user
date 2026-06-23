@@ -5,6 +5,8 @@ import { guestOrderAPI } from '../api'
 import { debounceAsync } from '../utils/debounce'
 import { useOrderDisplayHelpers } from './useOrderDisplayHelpers'
 
+const STATUS_POLL_INTERVAL_MS = 5000
+
 /**
  * 游客订单详情逻辑（classic + vault 共用）。
  */
@@ -21,8 +23,33 @@ export function useGuestOrderDetail() {
     order_password: '',
   })
   const fulfillmentDownloading = ref(false)
+  const statusPollTimer = ref<number | null>(null)
 
   const helpers = useOrderDisplayHelpers(order)
+
+  const shouldPollStatus = () => String(order.value?.status || '').trim() === 'fulfilling'
+
+  const stopStatusPolling = () => {
+    if (statusPollTimer.value !== null) {
+      window.clearInterval(statusPollTimer.value)
+      statusPollTimer.value = null
+    }
+  }
+
+  const startStatusPolling = () => {
+    if (statusPollTimer.value !== null) return
+    statusPollTimer.value = window.setInterval(() => {
+      void loadOrder({ silent: true })
+    }, STATUS_POLL_INTERVAL_MS)
+  }
+
+  const syncStatusPolling = () => {
+    if (shouldPollStatus()) {
+      startStatusPolling()
+    } else {
+      stopStatusPolling()
+    }
+  }
 
   const handleDownloadFulfillment = async (orderNo: string) => {
     if (fulfillmentDownloading.value) return
@@ -56,12 +83,13 @@ export function useGuestOrderDetail() {
   const hasAuth = computed(() => Boolean(auth.value.email && auth.value.order_password))
   const showAuthForm = computed(() => !hasAuth.value || authError.value !== '')
 
-  const loadOrder = async () => {
-    loading.value = true
+  const loadOrder = async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) loading.value = true
     try {
       if (!hasAuth.value) {
         order.value = null
         authError.value = t('guestOrderDetail.authRequired')
+        stopStatusPolling()
         return
       }
       const response = await guestOrderAPI.detail(String(route.params.order_no || '').trim(), {
@@ -71,10 +99,14 @@ export function useGuestOrderDetail() {
       order.value = response.data.data
       authError.value = ''
     } catch (error) {
-      order.value = null
-      authError.value = t('guestOrderDetail.authInvalid')
+      if (!silent) {
+        order.value = null
+        authError.value = t('guestOrderDetail.authInvalid')
+      }
+      stopStatusPolling()
     } finally {
-      loading.value = false
+      if (!silent) loading.value = false
+      syncStatusPolling()
     }
   }
 
@@ -102,6 +134,7 @@ export function useGuestOrderDetail() {
     auth.value = { email: '', order_password: '' }
     order.value = null
     authError.value = t('guestOrderDetail.authRequired')
+    stopStatusPolling()
   }
 
   onMounted(() => {
@@ -115,6 +148,7 @@ export function useGuestOrderDetail() {
 
   onUnmounted(() => {
     debouncedLoadOrder.cancel()
+    stopStatusPolling()
   })
 
   return {

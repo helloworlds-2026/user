@@ -7,6 +7,8 @@ import { useConfirmDialog } from './useConfirmDialog'
 import { toast } from './useToast'
 import { useOrderDisplayHelpers } from './useOrderDisplayHelpers'
 
+const STATUS_POLL_INTERVAL_MS = 5000
+
 /**
  * 已登录用户订单详情逻辑（classic + vault 共用）。
  */
@@ -19,8 +21,33 @@ export function useOrderDetail() {
   const loading = ref(true)
   const order = ref<any>(null)
   const fulfillmentDownloading = ref(false)
+  const statusPollTimer = ref<number | null>(null)
 
   const helpers = useOrderDisplayHelpers(order)
+
+  const shouldPollStatus = () => String(order.value?.status || '').trim() === 'fulfilling'
+
+  const stopStatusPolling = () => {
+    if (statusPollTimer.value !== null) {
+      window.clearInterval(statusPollTimer.value)
+      statusPollTimer.value = null
+    }
+  }
+
+  const startStatusPolling = () => {
+    if (statusPollTimer.value !== null) return
+    statusPollTimer.value = window.setInterval(() => {
+      void loadOrder({ silent: true })
+    }, STATUS_POLL_INTERVAL_MS)
+  }
+
+  const syncStatusPolling = () => {
+    if (shouldPollStatus()) {
+      startStatusPolling()
+    } else {
+      stopStatusPolling()
+    }
+  }
 
   const handleDownloadFulfillment = async (orderNo: string) => {
     if (fulfillmentDownloading.value) return
@@ -39,15 +66,17 @@ export function useOrderDetail() {
     }
   }
 
-  const loadOrder = async () => {
-    loading.value = true
+  const loadOrder = async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) loading.value = true
     try {
       const response = await userOrderAPI.detail(String(route.params.order_no || '').trim())
       order.value = response.data.data
     } catch (error) {
-      order.value = null
+      // 轮询刷新失败时保留当前订单，避免页面闪烁；仅首屏加载失败才置空。
+      if (!silent) order.value = null
     } finally {
-      loading.value = false
+      if (!silent) loading.value = false
+      syncStatusPolling()
     }
   }
 
@@ -81,6 +110,7 @@ export function useOrderDetail() {
 
   onUnmounted(() => {
     debouncedLoadOrder.cancel()
+    stopStatusPolling()
   })
 
   return {

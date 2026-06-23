@@ -236,8 +236,18 @@
               <span class="h-px flex-1 border-t border-gray-200/80 dark:border-white/10"></span>
             </div>
             <p class="text-center text-xs text-muted-foreground">
-              {{ attemptingMiniAppLogin ? t('auth.login.telegramMiniAppLoggingIn') : t('auth.login.telegramMiniAppHint') }}
+              {{ telegramAccessChecking ? t('auth.login.telegramMiniAppCheckingAccess') : (attemptingMiniAppLogin ? t('auth.login.telegramMiniAppLoggingIn') : t('auth.login.telegramMiniAppHint')) }}
             </p>
+            <Button
+              v-if="!telegramAccessChecking && telegramAccessAllowed"
+              type="button"
+              variant="secondary"
+              class="h-11 w-full font-semibold"
+              :disabled="attemptingMiniAppLogin"
+              @click="handleMiniAppLoginAction"
+            >
+              {{ attemptingMiniAppLogin ? t('auth.login.telegramMiniAppLoggingIn') : t('auth.login.telegramMiniAppLoginAction') }}
+            </Button>
           </div>
           <div v-if="showTelegramMiniAppEntry" class="space-y-2 pt-1">
             <p class="text-center text-xs text-muted-foreground">
@@ -286,7 +296,8 @@ const {
   imageCaptchaRef, turnstileRef, handleCaptchaConfigStale,
   registrationEnabled, emailVerificationEnabled,
   showTelegramWidget, telegramWidgetRef, showTelegramOidc, startTelegramOidc,
-  showMiniAppLoginHint, attemptingMiniAppLogin, showTelegramMiniAppEntry, openTelegramMiniAppEntry,
+  showMiniAppLoginHint, attemptingMiniAppLogin, telegramAccessChecking, telegramAccessAllowed, handleMiniAppLoginAction,
+  showTelegramMiniAppEntry, openTelegramMiniAppEntry,
   handleLogin,
 } = useLogin()
 
